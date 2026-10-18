@@ -17,7 +17,7 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { toast } from "sonner";
 import { useIsCompactViewport } from "@/components/ui/hooks/use-compact-viewport";
-import type { Row, TimelineProps, Viewport } from "../../shared/view";
+import type { Row, RowDensity, TimelineProps, Viewport } from "../../shared/view";
 import { EmptyLanes, LoadingLanes } from "./components/EmptyLanes";
 import { LiveControl, SpanControl } from "./components/HeaderContent";
 import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "./components/RowHeader";
@@ -28,12 +28,15 @@ import { laneState, searchTerms, summarizeActivity } from "./grouping/lane-state
 import { organizeLanes } from "./grouping/organize";
 import type { ThreadActivity } from "./grouping/types";
 import { formatModelLabel } from "./model-label";
+import { namesColumnWidth } from "./preferences";
 import { useSurface, type SurfaceKind } from "./surface-store";
 import { SECOND, SPAN_PRESETS } from "./time";
 import "./shell.css";
 
 /** Below this pane width the toolbar condenses into one menu. */
 const CONDENSED_WIDTH = 640;
+/** One density, upstream's 48px row: there is no layout setting to choose. */
+const ROW_DENSITY: RowDensity = "comfortable";
 /** Rows and the "in the window" test refresh on this coarse clock. */
 const ROWS_CLOCK_MS = 15 * SECOND;
 
@@ -295,14 +298,13 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
           provider={provider}
           subtitle={subtitleFor(thread, activity.get(row.id), provider)}
           terms={terms}
-          density={state.density}
           highlighted={row.id === highlightedThreadId}
           revealed={context.hovered || context.focused}
           actions={laneActions}
         />
       );
     },
-    [organized, providersById, data.threadsById, activity, terms, state.density, highlightedThreadId, laneActions, actions],
+    [organized, providersById, data.threadsById, activity, terms, highlightedThreadId, laneActions, actions],
   );
 
   const describeThread = useCallback(
@@ -336,7 +338,6 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
     <div
       ref={rootRef}
       className="lanes-chrome flex h-full min-h-0 flex-1 flex-col bg-surface-recessed p-1 text-[14px] leading-5"
-      data-density={state.density}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card shadow-[var(--lanes-tile-shadow)]">
         <Toolbar
@@ -370,7 +371,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               rows: organized.rows,
               blocks,
               handoffs,
-              density: state.density,
+              density: ROW_DENSITY,
               renderRowHeader,
               onOpenThread,
               onDecide: data.decide,
@@ -378,7 +379,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               loadDetail: data.loadDetail,
               describeThread,
               highlightedThreadId,
-              namesWidth: state.namesWidth,
+              namesWidth: namesColumnWidth(width, state.namesWidthOverride),
               onNamesWidthChange: actions.setNamesWidth,
               emptyState: (
                 <EmptyLanes

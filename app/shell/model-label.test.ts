@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatModelLabel } from "./model-label";
-import { parsePreferences } from "./preferences";
+import { namesColumnWidth, parsePreferences } from "./preferences";
 import { DAY, formatDuration, HOUR, MINUTE, presetForSpan, widerPreset } from "./time";
 
 describe("formatModelLabel", () => {
@@ -37,7 +37,7 @@ describe("time", () => {
 describe("parsePreferences", () => {
   it("defaults everything for missing or hostile input", () => {
     expect(parsePreferences(null)).toMatchObject({ groupMode: "project", filter: "active", span: 15 * MINUTE });
-    expect(parsePreferences(["x"]).density).toBe("comfortable");
+    expect(parsePreferences(["x"]).filter).toBe("active");
   });
 
   it("keeps valid fields when others are corrupt", () => {
@@ -46,8 +46,25 @@ describe("parsePreferences", () => {
       filter: "everything",
       span: 1e15,
       collapsedGroups: ["project:a", 7],
-      namesWidth: 220,
+      namesWidthOverride: 220,
+      density: "compact",
     });
-    expect(parsed).toMatchObject({ groupMode: "machine", filter: "active", span: 15 * MINUTE, collapsedGroups: [], namesWidth: 220 });
+    expect(parsed).toMatchObject({ groupMode: "machine", filter: "active", span: 15 * MINUTE, collapsedGroups: [], namesWidthOverride: 220 });
+    expect(parsed).not.toHaveProperty("density");
+  });
+});
+
+describe("namesColumnWidth", () => {
+  it("is roomy on a full pane and narrower on a small one", () => {
+    expect(namesColumnWidth(1_400, null)).toBe(272);
+    expect(namesColumnWidth(Infinity, null)).toBe(272);
+    expect(namesColumnWidth(800, null)).toBe(192);
+    expect(namesColumnWidth(500, null)).toBe(168);
+  });
+
+  it("honours a dragged width but never takes more than half the pane", () => {
+    expect(namesColumnWidth(1_400, 320)).toBe(320);
+    expect(namesColumnWidth(400, 320)).toBe(200);
+    expect(namesColumnWidth(200, null)).toBe(120);
   });
 });

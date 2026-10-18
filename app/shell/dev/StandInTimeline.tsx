@@ -15,9 +15,9 @@ const TONE: Record<LaneBlock["status"], string> = {
 };
 
 export function StandInTimeline(props: TimelineProps) {
-  const { rows, blocks, now, viewport, density, renderRowHeader, onOpenThread, onToggleRow, namesWidth = 168 } = props;
+  const { rows, blocks, now, viewport, renderRowHeader, onOpenThread, onToggleRow, namesWidth = 264 } = props;
   const [hovered, setHovered] = useState<string | null>(null);
-  const height = density === "compact" ? 36 : 48;
+  const height = 48;
   const start = viewport.end - viewport.span;
   const left = (time: number) => ((time - start) / viewport.span) * 100;
   const byThread = new Map<string, LaneBlock[]>();
