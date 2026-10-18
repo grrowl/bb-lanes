@@ -162,7 +162,7 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
       }
     }
     const turn = state.turns[turnId];
-    if (!turn) continue;
+    if (!turn || !(INDEX_EVENT_TYPES as readonly string[]).includes(event.type)) continue;
     if (turn.syntheticEnd) {
       turn.syntheticEnd = false;
       turn.block.end = null;

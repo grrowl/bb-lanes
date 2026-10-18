@@ -95,6 +95,11 @@ describe("thread event fold", () => {
     expect(foldEvents(state, [event(2, "item/started", "turn", { item: { type: "commandExecution" } })], thread)).toEqual(state);
     expect(state.lastSeq).toBe(2);
   });
+  it("does not reopen a crash-closed turn for unknown events", () => {
+    const closed = reconcileIdle(fold([started(1)]), { ...thread, status: "idle" });
+    expect(foldEvents(closed, [event(2, "future/event", "turn")], thread).turns.turn.block)
+      .toMatchObject({ status: "interrupted", end: thread.updatedAt });
+  });
   it("folds the real redacted fixture equally in one pass and event by event", () => {
     const events = JSON.parse(readFileSync(new URL("../reference/sample-thread-events.json", import.meta.url), "utf8")) as IndexEvent[];
     const whole = fold(events);
