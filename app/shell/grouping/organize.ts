@@ -377,7 +377,7 @@ function buildGroupTree(group: GroupBucket, lanes: ReadonlyMap<string, Lane>): G
     // Keep the ancestors that share this group so a match keeps its context.
     for (let at: Lane | undefined = lane; at !== undefined && !included.has(at.thread.id); ) {
       included.add(at.thread.id);
-      const parentId = at.parentId;
+      const parentId: string | null = at.parentId;
       at = parentId !== null && members.has(parentId) ? lanes.get(parentId) : undefined;
     }
   }
