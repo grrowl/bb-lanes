@@ -102,12 +102,12 @@ describe("LanesTimeline", () => {
     merge.focus();
     fireEvent.keyDown(merge, { key: "Enter" });
     fireEvent.keyDown(merge, { key: "Enter" });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", { split: true });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: true }));
     fireEvent.click(merge);
     fireEvent.keyDown(merge, { key: "Enter", shiftKey: true });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", { split: false });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: false }));
     fireEvent.click(block(/Customer interviews/), { metaKey: true });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_research", { split: false });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_research", expect.objectContaining({ split: false }));
   });
 
   it("decides inline: Approve has focus and answers the waiting turn", async () => {

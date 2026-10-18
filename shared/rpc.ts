@@ -10,6 +10,7 @@ export const laneBlockSchema = z.object({
   id: z.string(),
   threadId: z.string(),
   model: z.string().nullable().optional(),
+  seq: z.number().nullable().optional(),
   start: z.number(),
   end: z.number().nullable(),
   status: z.enum(["done", "running", "waiting", "failed", "interrupted"]),

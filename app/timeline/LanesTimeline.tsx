@@ -490,10 +490,11 @@ export function LanesTimeline(props: TimelineProps) {
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [openBlockId, openPopover]);
 
+  // Blocks open their thread at that turn, not at its latest message.
   const openThread = useCallback(
-    (threadId: string, split: boolean) => {
+    (block: LaneBlock, split: boolean) => {
       openPopover(null);
-      latest.current.onOpenThread(threadId, { split });
+      latest.current.onOpenThread(block.threadId, { split, seq: block.seq ?? null });
     },
     [openPopover],
   );
@@ -529,11 +530,11 @@ export function LanesTimeline(props: TimelineProps) {
       if (!block) return;
       // Threads open beside Lanes; ⌘/Ctrl opens one here instead.
       if (event.metaKey || event.ctrlKey) {
-        openThread(block.threadId, false);
+        openThread(block, false);
         return;
       }
       if (event.detail === 2) {
-        openThread(block.threadId, true);
+        openThread(block, true);
         return;
       }
       openPopover(selection.get().openBlockId === block.id ? null : block.id);
@@ -736,8 +737,8 @@ export function LanesTimeline(props: TimelineProps) {
             return moveFocus(nav.tabFrom(model, current, event.shiftKey));
           case "Enter": {
             const block = navId.startsWith("b:") ? index.byId.get(navId.slice(2)) : undefined;
-            if (block && (event.metaKey || event.ctrlKey)) openThread(block.threadId, false);
-            else if (block && openId === block.id && block.status !== "waiting") openThread(block.threadId, !event.shiftKey);
+            if (block && (event.metaKey || event.ctrlKey)) openThread(block, false);
+            else if (block && openId === block.id && block.status !== "waiting") openThread(block, !event.shiftKey);
             else activateNav(navId, { shiftKey: event.shiftKey, metaKey: false, ctrlKey: false });
             return true;
           }
@@ -971,7 +972,7 @@ export function LanesTimeline(props: TimelineProps) {
                     controller={controller}
                     describe={describe}
                     onDecide={(decision) => decide(openBlock, decision)}
-                    onOpen={(split) => openThread(openBlock.threadId, split)}
+                    onOpen={(split) => openThread(openBlock, split)}
                   />
                 ) : (
                   <BlockTooltip
@@ -985,7 +986,7 @@ export function LanesTimeline(props: TimelineProps) {
                     now={activeFrame.now}
                     detail={detailFor(openBlock)}
                     describe={describe}
-                    onOpen={(split) => openThread(openBlock.threadId, split)}
+                    onOpen={(split) => openThread(openBlock, split)}
                   />
                 )
               )}

@@ -69,7 +69,11 @@ export interface TimelineProps {
   renderRowHeader(row: Row, ctx: { hovered: boolean; focused: boolean }): ReactNode;
 
   /** A block was activated (click / Enter on a non-waiting block's "Open"). */
-  onOpenThread(threadId: string, options: { split: boolean }): void;
+  /**
+   * Open a thread. `seq` is the event sequence of the turn that was activated,
+   * so the thread opens scrolled to that turn rather than at its latest message.
+   */
+  onOpenThread(threadId: string, options: { split: boolean; seq?: number | null }): void;
   /** Inline Approve / Reject on a waiting block. */
   onDecide(block: LaneBlock, decision: "approve" | "reject"): Promise<void>;
   /** Group disclosure toggled from the engine (click on a collapsed group's summary strip). */
