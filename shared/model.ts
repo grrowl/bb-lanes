@@ -3,7 +3,8 @@
 // A lane is one bb thread. A block is one agent turn on that thread: it
 // starts when the turn starts and ends when the turn completes. Hand-offs are
 // the moments one thread caused work on another: a spawn (parent -> child's
-// first turn) or a `bb thread tell` (sender -> recipient's turn).
+// first turn), a fork, a `bb thread tell` (sender -> recipient's turn), or an
+// end (a child finishing, reported back into its parent's turn).
 //
 // Thread metadata (title, project, section, environment, machine, provider,
 // live status, pending interaction) is NOT sent by the server: the frontend
@@ -80,7 +81,14 @@ export interface LaneBlock {
   ask: BlockAsk | null;
 }
 
-export type HandoffKind = "spawn" | "tell";
+/**
+ * - spawn: a parent created a child thread (the child's first turn).
+ * - fork: a thread was forked from another (`originKind: "fork"`).
+ * - tell: one agent messaged another (`client/turn/requested` source "tell" with a `senderThreadId`).
+ * - end: a child finished or failed and bb reported it to the parent
+ *   (`systemMessageKind` "child-completed" / "child-failed"; `fromThreadId` is the child).
+ */
+export type HandoffKind = "spawn" | "fork" | "tell" | "end";
 
 export interface LaneHandoff {
   /** `${fromThreadId}>${toBlockId}` */

@@ -124,10 +124,13 @@ describe("Lanes nav panel", () => {
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "docs" } });
     await waitFor(() => expect(screen.queryByText("Deploy to staging")).toBeNull());
     const docs = screen.getByRole("link", { name: /Tidy the docs/ });
+    // A plain click opens beside Lanes; ⌘-click opens in place.
+    fireEvent.click(docs);
     fireEvent.click(docs, { metaKey: true });
-    expect(slot.inspection.sidebarActionCalls).toContainEqual(
+    expect(slot.inspection.sidebarActionCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ method: "open", threadId: "done", options: { split: true } }),
-    );
+      expect.objectContaining({ method: "open", threadId: "done", options: { split: false } }),
+    ]));
     slot.lifecycle.unmount();
   });
 
