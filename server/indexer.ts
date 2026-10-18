@@ -38,7 +38,11 @@ export interface IndexedTurn {
   pending: Record<string, BlockAsk>;
   syntheticEnd: boolean;
 }
+/** Bump whenever folding changes what a block holds; stored indexes from older versions are rebuilt. */
+export const INDEX_VERSION = 2;
+
 export interface ThreadIndex {
+  version: number;
   lastSeq: number;
   requests: InputRequest[];
   turns: Record<string, IndexedTurn>;
@@ -51,7 +55,7 @@ export const INDEX_EVENT_TYPES = [
 ] as const;
 
 export const emptyIndex = (): ThreadIndex => ({
-  lastSeq: 0, requests: [], turns: {}, handoffs: [], removedTurnIds: [],
+  version: INDEX_VERSION, lastSeq: 0, requests: [], turns: {}, handoffs: [], removedTurnIds: [],
 });
 export function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -107,9 +111,32 @@ function addHandoff(state: ThreadIndex, thread: IndexThread, turn: IndexedTurn, 
     fromThreadId: from, fromBlockId: null, toThreadId: thread.id,
     toBlockId: turn.block.id, at: request.at });
 }
+const ENVELOPE_LINE = /^\[bb [^\]]*\]$/;
+const MARKDOWN_PREFIX = /^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/;
+
+/**
+ * A block's title: the first line of the prompt that reads as prose. bb wraps
+ * relayed messages in a "[bb message from thread:…]" envelope line and agents
+ * write markdown, so skip envelopes, rules, and fences, and drop list, quote,
+ * heading, and emphasis markers.
+ */
+export function promptTitle(prompt: string): string {
+  for (const raw of prompt.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || ENVELOPE_LINE.test(line) || /^(?:-{3,}|\*{3,}|_{3,}|`{3}.*)$/.test(line)) continue;
+    const text = line.replace(MARKDOWN_PREFIX, "").replace(/\*\*|__|`/g, "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    if (text.length <= 120) return text;
+    const cut = text.slice(0, 119);
+    const space = cut.lastIndexOf(" ");
+    return `${space > 80 ? cut.slice(0, space) : cut}…`;
+  }
+  return "";
+}
+
 function applyRequest(turn: IndexedTurn, request: InputRequest) {
   turn.prompt = request.prompt;
-  turn.block.title = request.prompt.trim().split(/\r?\n/, 1)[0].slice(0, 120);
+  turn.block.title = promptTitle(request.prompt);
   turn.block.model = request.model;
   turn.block.source = request.source;
   turn.block.initiator = request.initiator;

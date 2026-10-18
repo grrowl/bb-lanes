@@ -5,7 +5,8 @@ import { foldEvents, INDEX_EVENT_TYPES, inlineApproval, object, reconcileIdle, t
 import { LanesStorage } from "./storage";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
-const PAGE_SIZE = 500;
+// bb caps a thread events page at 100 rows; thread list pages use the same size.
+const PAGE_SIZE = 100;
 const relevantTypes = new Set<string>(INDEX_EVENT_TYPES);
 export class LanesService {
   readonly storage: LanesStorage;
@@ -35,9 +36,9 @@ export class LanesService {
     if (previous) clearTimeout(previous);
     this.timers.set(threadId, setTimeout(() => {
       this.timers.delete(threadId);
-      void this.refresh(threadId).catch(() => {
+      void this.refresh(threadId).catch((error: unknown) => {
         if (this.disposed) return;
-        this.bb.log.warn(`Could not update lane ${threadId}; retrying`);
+        this.bb.log.warn(`Could not update lane ${threadId}; retrying: ${error instanceof Error ? error.message : String(error)}`);
         this.timers.set(threadId, setTimeout(() => {
           this.timers.delete(threadId);
           this.schedule(threadId);
@@ -115,7 +116,12 @@ export class LanesService {
     const worker = async () => {
       while (!this.disposed && cursor < threads.length) {
         const thread = threads[cursor++];
-        await this.refresh(thread.id);
+        // One unreadable thread must not stall the rest of the backfill; retry it on its own.
+        await this.refresh(thread.id).catch((error: unknown) => {
+          if (this.disposed) return;
+          this.bb.log.warn(`Could not index lane ${thread.id}: ${error instanceof Error ? error.message : String(error)}`);
+          this.schedule(thread.id);
+        });
       }
     };
     const results = await Promise.allSettled([worker(), worker()]);

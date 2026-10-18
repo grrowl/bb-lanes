@@ -1,6 +1,6 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { LaneBlock, LaneHandoff, LanesSnapshot } from "../shared/model";
-import { emptyIndex, type IndexThread, type ThreadIndex } from "./indexer";
+import { emptyIndex, INDEX_VERSION, type IndexThread, type ThreadIndex } from "./indexer";
 
 type JsonRow = { json: string };
 export class LanesStorage {
@@ -20,7 +20,9 @@ export class LanesStorage {
   }
   read(threadId: string): ThreadIndex {
     const row = this.db.prepare("SELECT state FROM lane_threads WHERE id = ?").get(threadId) as { state: string } | undefined;
-    return row ? JSON.parse(row.state) as ThreadIndex : emptyIndex();
+    if (!row) return emptyIndex();
+    const state = JSON.parse(row.state) as ThreadIndex;
+    return state.version === INDEX_VERSION ? state : emptyIndex();
   }
   save(thread: IndexThread, state: ThreadIndex) {
     this.db.transaction(() => {
