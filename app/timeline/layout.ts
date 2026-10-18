@@ -3,7 +3,7 @@
 // that keeps dense history cheap to draw, the merged activity strip of a
 // collapsed group, and hand-off curve endpoints. Pure functions, unit tested.
 import type { BlockStatus, LaneBlock, LaneHandoff } from "../../shared/model";
-import type { Row, RowDensity } from "../../shared/view";
+import type { LineColor, Row, RowDensity } from "../../shared/view";
 
 // ----- Rows -----
 
@@ -341,6 +341,8 @@ export interface Curve {
   to: CurveEnd;
   /** The recipient's turn is still going, so the curve flows. */
   live: boolean;
+  /** The recipient turn's state, which "auto" line colours follow. */
+  targetStatus: BlockStatus;
 }
 
 /**
@@ -373,15 +375,56 @@ export function handoffCurves(
       from: { t: t1, row: a?.index ?? null, proxy: a?.proxy ?? false },
       to: { t: t2, row: b?.index ?? null, proxy: b?.proxy ?? false },
       live: target.status === "running" || target.status === "waiting",
+      targetStatus: target.status,
     });
   }
   return curves;
 }
 
-/** The cubic used by the reference: horizontal tangents, softened by distance. */
-export function curvePath(x1: number, y1: number, x2: number, y2: number, minPull: number): string {
-  const pull = Math.max(minPull, Math.abs(x2 - x1) / 2);
-  return `M ${round(x1)} ${round(y1)} C ${round(x1 + pull)} ${round(y1)}, ${round(x2 - pull)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
+/** "auto" follows the target turn: running blue, waiting amber, failed red, else neutral. */
+export function lineColor(color: LineColor, targetStatus: BlockStatus): Exclude<LineColor, "auto"> {
+  if (color !== "auto") return color;
+  if (targetStatus === "running") return "blue";
+  if (targetStatus === "waiting") return "amber";
+  if (targetStatus === "failed") return "red";
+  return "neutral";
+}
+
+/** Below this horizontal distance a hand-off is drawn as a connector, not an S-curve. */
+export const CONNECTOR_PX = 36;
+/** Radius of a connector's rounded elbows. */
+export const ELBOW_PX = 8;
+
+/**
+ * The path for a hand-off from (x1, y1) to (x2, y2). x is in viewBox units
+ * (`unitsPerPx` of them per pixel, the SVG is stretched horizontally), y in px.
+ *
+ * Far apart, it is the reference's cubic: horizontal tangents at both ends,
+ * pulled by half the distance (at least `minPullPx`). Close together (spawns
+ * are near-instant) an S would squash, so it becomes a connector: down from
+ * the sender's moment, round a soft elbow, and into the target's start. When
+ * the target starts at or before that moment the vertical runs just left of
+ * it, so the line still arrives head-on. Either way the last segment is
+ * horizontal, which is where the arrow cap points.
+ */
+export function handoffPath(x1: number, y1: number, x2: number, y2: number, unitsPerPx: number, minPullPx = 24): string {
+  const dy = y2 - y1;
+  const dxPx = (x2 - x1) / unitsPerPx;
+  if (Math.abs(dy) < 0.5) return `M ${round(x1)} ${round(y1)} H ${round(x2)}`;
+  if (dxPx >= CONNECTOR_PX) {
+    const pull = Math.max(minPullPx * unitsPerPx, (x2 - x1) / 2);
+    return `M ${round(x1)} ${round(y1)} C ${round(x1 + pull)} ${round(y1)}, ${round(x2 - pull)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
+  }
+  const r = Math.min(ELBOW_PX, Math.abs(dy) / 2);
+  const rx = r * unitsPerPx;
+  const sy = Math.sign(dy);
+  const xv = Math.min(x1, x2 - rx);
+  let d = `M ${round(x1)} ${round(y1)}`;
+  // Leaving leftwards first happens under the sender's block, out of sight.
+  if (x1 - xv > 1e-6) d += ` Q ${round(xv)} ${round(y1)}, ${round(xv)} ${round(y1 + sy * r)}`;
+  d += ` V ${round(y2 - sy * r)} Q ${round(xv)} ${round(y2)}, ${round(xv + rx)} ${round(y2)}`;
+  if (x2 - (xv + rx) > 1e-6) d += ` H ${round(x2)}`;
+  return d;
 }
 
 function round(n: number): number {

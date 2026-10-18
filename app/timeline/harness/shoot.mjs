@@ -36,35 +36,35 @@ const SHOTS = {
   "tooltip-light": {
     query: "elapsed=2&speed=0",
     async act(page) {
-      await blockByTitle(page, "Merge the backend and brief the shell").click();
+      await blockByTitle(page, "Merge the backend and brief the shell").click({ force: true });
       await page.waitForTimeout(700);
     },
   },
   "tooltip-dark": {
     query: "theme=dark&elapsed=2&speed=0",
     async act(page) {
-      await blockByTitle(page, "Build the timeline engine").click();
+      await blockByTitle(page, "Build the timeline engine").click({ force: true });
       await page.waitForTimeout(700);
     },
   },
   "decision-light": {
     query: "elapsed=2&speed=0",
     async act(page) {
-      await blockByTitle(page, "Rotate the API keys").click();
+      await blockByTitle(page, "Rotate the API keys").click({ force: true });
       await page.waitForTimeout(400);
     },
   },
   "decision-dark": {
     query: "theme=dark&elapsed=2&speed=0",
     async act(page) {
-      await blockByTitle(page, "Push the shell to main").click();
+      await blockByTitle(page, "Push the shell to main").click({ force: true });
       await page.waitForTimeout(400);
     },
   },
   "hover-linking": {
     query: "elapsed=2&speed=0&span=1h",
     async act(page) {
-      await blockByTitle(page, "Write the spec and contracts").hover();
+      await blockByTitle(page, "Write the spec and contracts").hover({ force: true });
       await page.waitForTimeout(400);
     },
   },
@@ -88,8 +88,19 @@ const SHOTS = {
   "span-7d-dark": { query: "theme=dark&elapsed=2&speed=0&span=7d" },
   "collapsed-group": { query: "elapsed=2&speed=0&collapse=project:chillidonut&span=1h" },
   compact: { query: "elapsed=2&speed=0&density=compact" },
-  "paper-light": { query: "palette=paper&elapsed=2&speed=0" },
-  "paper-dark": { query: "palette=paper&theme=dark&elapsed=2&speed=0" },
+  "lines-styles": { query: "elapsed=2&speed=0&span=1h&spawn=dotted,circle,arrow,violet&tell=solid,dot,arrow,green" },
+  "line-hover": {
+    query: "elapsed=2&speed=0&span=1h",
+    async act(page) {
+      const point = await page.evaluate(() => {
+        const path = document.querySelector('.bl-curve-hit[data-h="thr_backend>c3"]');
+        const p = path.getPointAtLength(path.getTotalLength() / 2).matrixTransform(path.getScreenCTM());
+        return { x: p.x, y: p.y };
+      });
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(300);
+    },
+  },
   "stress-200": { query: "scenario=stress&speed=0&span=4h" },
   "stress-200-7d": { query: "scenario=stress&speed=0&span=7d&theme=dark" },
   empty: { query: "empty=1&speed=0" },

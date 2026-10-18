@@ -6,12 +6,12 @@
 // anchor time plus a culling range) in percent of the track; the controller
 // slides and pans by writing transforms. Rows are virtualised; only blocks in
 // the frame's range are drawn, and dense history collapses into clusters.
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { LaneBlock, LaneHandoff } from "../../shared/model";
-import type { GroupRow, LaneRow, Row, TimelineProps } from "../../shared/view";
+import { DEFAULT_LINE_STYLES, type GroupRow, type LaneRow, type Row, type TimelineProps } from "../../shared/view";
 import { ViewController, type Frame } from "./controller";
-import { CurveDots, Curves } from "./Curves";
+import { CurveCaps, Curves } from "./Curves";
 import { EmptyState } from "./EmptyState";
 import { GridLines, RulerTicks, useTicks } from "./Ruler";
 import { GroupStrip, LaneTrack } from "./TrackRow";
@@ -32,7 +32,7 @@ import {
 import * as nav from "./navigation";
 import { BlockTooltip, DecisionPopover, type DetailState } from "./Popover";
 import { UiStore, useUi, type UiState } from "./store";
-import { clamp, formatPointerTime, timeAtFraction } from "./time";
+import { clamp, formatClock, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
 
 export const NAMES_MIN = 120;
@@ -53,6 +53,7 @@ interface Focusable {
 
 export function LanesTimeline(props: TimelineProps) {
   const { rows, blocks, handoffs, now, viewport, density, highlightedThreadId, className } = props;
+  const lineStyles = props.lineStyles ?? DEFAULT_LINE_STYLES;
   const rawId = useId();
   const uid = useMemo(() => `bl${rawId.replace(/[^a-zA-Z0-9]/g, "")}`, [rawId]);
 
@@ -65,6 +66,7 @@ export function LanesTimeline(props: TimelineProps) {
   const index = useMemo(() => indexBlocks(blocks), [blocks]);
   const layout = useMemo(() => layoutRows(rows, density), [rows, density]);
   const hasOpen = useMemo(() => blocks.some((b) => b.end === null), [blocks]);
+
 
   const hover = useMemo(() => new UiStore(), []);
   const selection = useMemo(() => new UiStore(), []);
@@ -84,6 +86,11 @@ export function LanesTimeline(props: TimelineProps) {
     controller.start();
     return () => controller.stop();
   }, [controller]);
+
+  const historyStart = useMemo(() => blocks.reduce((min, b) => Math.min(min, b.start), Infinity), [blocks]);
+  useEffect(() => {
+    controller.historyStart = historyStart;
+  }, [controller, historyStart]);
 
   const reducedMotion = usePrefersReducedMotion();
   useEffect(() => {
@@ -482,12 +489,13 @@ export function LanesTimeline(props: TimelineProps) {
       }
       const block = index.byId.get(navId.slice(2));
       if (!block) return;
+      // Threads open beside Lanes; ⌘/Ctrl opens one here instead.
       if (event.metaKey || event.ctrlKey) {
-        openThread(block.threadId, true);
+        openThread(block.threadId, false);
         return;
       }
       if (event.detail === 2) {
-        openThread(block.threadId, false);
+        openThread(block.threadId, true);
         return;
       }
       openPopover(selection.get().openBlockId === block.id ? null : block.id);
@@ -537,21 +545,35 @@ export function LanesTimeline(props: TimelineProps) {
   useTouchPan(trackRef, controller);
 
   const hoverFrame = useRef(0);
+  const lineTipRef = useRef<HTMLDivElement>(null);
+  const handoffById = useMemo(() => new Map(handoffs.map((h) => [h.id, h])), [handoffs]);
   const onCanvasPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (dragState.current?.moved || event.pointerType === "touch") return;
     const y = event.clientY;
     const canvas = event.currentTarget;
-    const item = (event.target as Element).closest?.<HTMLElement>(".bl-item") ?? null;
+    const target = event.target as Element;
+    const item = target.closest?.<HTMLElement>(".bl-item") ?? null;
+    const line = item ? null : (target.closest?.(".bl-curve-hit")?.getAttribute("data-h") ?? null);
+    const x = event.clientX;
     if (hoverFrame.current) cancelAnimationFrame(hoverFrame.current);
     hoverFrame.current = requestAnimationFrame(() => {
       hoverFrame.current = 0;
       const offset = y - canvas.getBoundingClientRect().top;
       const rowIndex = rowAtOffset(layout, offset);
       const row = rowIndex >= 0 && offset < layout.total ? layout.rows[rowIndex] : undefined;
+      const handoff = line ? handoffById.get(line) : undefined;
+      if (handoff && lineTipRef.current) {
+        const rect = canvas.getBoundingClientRect();
+        lineTipRef.current.style.transform = `translate(${x - rect.left}px, ${offset}px)`;
+      }
       hover.set({
         hoverRow: row?.id ?? null,
-        hoverItem: item?.dataset.nav ?? null,
-        hoverBlocks: item ? (item.dataset.members ?? item.dataset.block ?? null) : null,
+        hoverItem: item?.dataset.nav ?? (handoff ? `h:${handoff.id}` : null),
+        hoverBlocks: item
+          ? (item.dataset.members ?? item.dataset.block ?? null)
+          : handoff
+            ? [handoff.toBlockId, handoff.fromBlockId].filter(Boolean).join(" ")
+            : null,
       });
     });
   };
@@ -676,8 +698,8 @@ export function LanesTimeline(props: TimelineProps) {
             return moveFocus(nav.tabFrom(model, current, event.shiftKey));
           case "Enter": {
             const block = navId.startsWith("b:") ? index.byId.get(navId.slice(2)) : undefined;
-            if (block && (event.metaKey || event.ctrlKey)) openThread(block.threadId, true);
-            else if (block && openId === block.id && block.status !== "waiting") openThread(block.threadId, event.shiftKey);
+            if (block && (event.metaKey || event.ctrlKey)) openThread(block.threadId, false);
+            else if (block && openId === block.id && block.status !== "waiting") openThread(block.threadId, !event.shiftKey);
             else activateNav(navId, { shiftKey: event.shiftKey, metaKey: false, ctrlKey: false });
             return true;
           }
@@ -811,6 +833,7 @@ export function LanesTimeline(props: TimelineProps) {
             onPointerLeave={onCanvasPointerLeave}
             onClick={onCanvasClick}
           >
+            <LineTip ref={lineTipRef} hover={hover} handoffById={handoffById} describe={describe} />
             <RowBands
               layout={layout}
               renderedRows={renderedRows}
@@ -850,8 +873,8 @@ export function LanesTimeline(props: TimelineProps) {
                     span={activeFrame.span}
                     width={activeFrame.width || 960}
                     uid={uid}
+                    styles={lineStyles}
                   />
-                  <CurveDots curves={curves} layout={layout} anchor={activeFrame.anchor} span={activeFrame.span} />
                   {renderedRows.map((i) => {
                     const row = layout.rows[i]!;
                     if (row.kind === "lane") {
@@ -891,6 +914,7 @@ export function LanesTimeline(props: TimelineProps) {
                       />
                     );
                   })}
+                  <CurveCaps curves={curves} layout={layout} anchor={activeFrame.anchor} span={activeFrame.span} styles={lineStyles} />
                 </div>
               </div>
               <div className="bl-nowclip" aria-hidden="true">
@@ -945,6 +969,7 @@ export function LanesTimeline(props: TimelineProps) {
             {...onNamesResize}
           />
         )}
+        <ScrubBar controller={controller} />
         <div ref={hoverLineRef} className="bl-hover-time" aria-hidden="true">
           <span ref={hoverLabelRef} className="bl-hover-label" />
         </div>
@@ -1260,6 +1285,73 @@ function openBlocksOf(index: BlockIndex, threadId: string): LaneBlock[] {
   return open;
 }
 
+/** The small dark chip that names a hovered hand-off line. */
+const LineTip = forwardRef<
+  HTMLDivElement,
+  { hover: UiStore; handoffById: ReadonlyMap<string, LaneHandoff>; describe: Describe }
+>(function LineTip({ hover, handoffById, describe }, ref) {
+  const hoverItem = useUi(hover, selectHoverItem);
+  const handoff = hoverItem?.startsWith("h:") ? handoffById.get(hoverItem.slice(2)) : undefined;
+  return (
+    <div ref={ref} className="bl-line-tip" data-show={handoff ? "" : undefined} aria-hidden="true">
+      {handoff && (
+        <span>
+          {handoff.kind === "spawn" ? "Spawned" : "Messaged"} · {describe(handoff.fromThreadId).title} →{" "}
+          {describe(handoff.toThreadId).title} · {formatClock(handoff.at)}
+        </span>
+      )}
+    </div>
+  );
+});
+
+/**
+ * Where the window sits in the loaded history, like a horizontal scrollbar:
+ * drag the thumb to scrub, click the bar to glide there.
+ */
+function ScrubBar({ controller }: { controller: ViewController }) {
+  const drag = useRef<{ x: number; width: number } | null>(null);
+  const thumbRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      controller.scrubThumb = el;
+      if (el) controller.apply(controller.clock.read());
+    },
+    [controller],
+  );
+  return (
+    <div
+      className="bl-scrub"
+      aria-hidden="true"
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        const bar = event.currentTarget.getBoundingClientRect();
+        if ((event.target as Element).closest(".bl-scrub-thumb")) {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          drag.current = { x: event.clientX, width: bar.width };
+          event.currentTarget.dataset.dragging = "";
+        } else {
+          controller.scrubTo(clamp((event.clientX - bar.left) / bar.width, 0, 1));
+        }
+      }}
+      onPointerMove={(event) => {
+        const d = drag.current;
+        if (!d) return;
+        controller.scrubBy((event.clientX - d.x) / d.width);
+        d.x = event.clientX;
+      }}
+      onPointerUp={(event) => {
+        if (!drag.current) return;
+        drag.current = null;
+        delete event.currentTarget.dataset.dragging;
+        controller.settle();
+      }}
+    >
+      <div className="bl-scrub-rail">
+        <div ref={thumbRef} className="bl-scrub-thumb" />
+      </div>
+    </div>
+  );
+}
+
 function JumpToNow({ visible, waiting, onJump }: { visible: boolean; waiting: number; onJump: () => void }) {
   return (
     <button
@@ -1300,14 +1392,17 @@ function LinkingStyle({
 }) {
   const hoverRow = useUi(hover, selectHoverRow);
   const hoverBlocks = useUi(hover, selectHoverBlocks);
+  const hoverItem = useUi(hover, selectHoverItem);
+  const hoverLine = hoverItem?.startsWith("h:") ? hoverItem.slice(2) : null;
   const css = useMemo(
-    () => linkingCss(uid, hoverRow, hoverBlocks ? hoverBlocks.split(" ") : null, layout, handoffs),
-    [uid, hoverRow, hoverBlocks, layout, handoffs],
+    () => linkingCss(uid, hoverRow, hoverBlocks ? hoverBlocks.split(" ") : null, layout, handoffs, hoverLine),
+    [uid, hoverRow, hoverBlocks, layout, handoffs, hoverLine],
   );
   return <style>{css}</style>;
 }
 const selectHoverRow = (s: UiState) => s.hoverRow;
 const selectHoverBlocks = (s: UiState) => s.hoverBlocks;
+const selectHoverItem = (s: UiState) => s.hoverItem;
 
 export function linkingCss(
   uid: string,
@@ -1315,9 +1410,11 @@ export function linkingCss(
   hoverBlocks: readonly string[] | null,
   layout: RowLayout,
   handoffs: readonly LaneHandoff[],
+  hoverLine: string | null = null,
 ): string {
   const root = `[data-bl="${uid}"]`;
   const rules: string[] = [];
+  if (hoverLine) rules.push(`${root} .bl-curve[data-h="${cssString(hoverLine)}"]{stroke-width:2px}`);
   if (hoverRow) rules.push(`${root} .bl-band[data-row="${cssString(hoverRow)}"]{background:var(--bl-hover-band)}`);
   // What is being hovered: an item's blocks, else the lane's (or group's) threads.
   const blockIds = hoverBlocks ? new Set(hoverBlocks) : null;
@@ -1348,10 +1445,9 @@ export function linkingCss(
   if (threadIds) for (const t of threadIds) keep.push(`[data-thread="${cssString(t)}"] *`);
   rules.push(`${root} .bl-item{opacity:var(--bl-dim)}`);
   rules.push(`${root} .bl-item:is(${keep.join(",")}){opacity:1}`);
-  rules.push(`${root} .bl-curve,${root} .bl-dot{opacity:.2}`);
+  rules.push(`${root} :is(.bl-curve,.bl-caps){opacity:.25}`);
   const hs = linkedHandoffs.map((id) => `[data-h="${cssString(id)}"]`).join(",");
-  rules.push(`${root} .bl-curve:is(${hs}){opacity:1;stroke:var(--bl-link);stroke-width:1.5px;stroke-dasharray:none}`);
-  rules.push(`${root} .bl-dot:is(${hs}){opacity:1;border-color:var(--bl-link)}`);
+  rules.push(`${root} :is(.bl-curve,.bl-caps):is(${hs}){opacity:1}`);
   const lanes = [...linkedThreads].map((t) => `[data-row="${cssString(t)}"]`).join(",");
   rules.push(`${root} .bl-band:is(${lanes}){background:var(--bl-link-band)}`);
   return rules.join("");

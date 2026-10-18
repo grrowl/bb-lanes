@@ -73,38 +73,26 @@ describe("pan and zoom", () => {
 });
 
 describe("ticks", () => {
-  it("adapts the step to the span", () => {
-    expect(chooseTickStep(15 * MINUTE, 1200).major).toBe(2 * MINUTE);
-    expect(chooseTickStep(15 * MINUTE, 1600).major).toBe(MINUTE);
-    expect(chooseTickStep(HOUR, 1200).major).toBe(5 * MINUTE);
-    expect(chooseTickStep(4 * HOUR, 1200).major).toBe(30 * MINUTE);
-    expect(chooseTickStep(DAY, 1200).major).toBe(2 * HOUR);
-    expect(chooseTickStep(7 * DAY, 1200).major).toBe(12 * HOUR);
-    expect(chooseTickStep(15 * MINUTE, 480).major).toBe(5 * MINUTE);
+  it("adapts the step to the span and the width", () => {
+    expect(chooseTickStep(15 * MINUTE, 1600)).toBe(MINUTE);
+    expect(chooseTickStep(15 * MINUTE, 1200)).toBe(2 * MINUTE);
+    expect(chooseTickStep(HOUR, 1200)).toBe(5 * MINUTE);
+    expect(chooseTickStep(4 * HOUR, 1200)).toBe(30 * MINUTE);
+    expect(chooseTickStep(DAY, 1200)).toBe(2 * HOUR);
+    expect(chooseTickStep(7 * DAY, 1200)).toBe(12 * HOUR);
+    expect(chooseTickStep(15 * MINUTE, 480)).toBe(5 * MINUTE);
   });
 
-  it("subdivides majors with minor ticks", () => {
-    expect(chooseTickStep(HOUR, 1200).minor).toBe(MINUTE);
-    for (const span of [MINUTE, 15 * MINUTE, HOUR, 4 * HOUR, DAY, 7 * DAY]) {
-      const step = chooseTickStep(span, 1000);
-      expect(step.minor === null || step.major % step.minor === 0).toBe(true);
-    }
-  });
-
-  it("labels live ticks by age, from the right edge", () => {
-    const ticks = relativeTicks(NOW, 30 * MINUTE, { major: 5 * MINUTE, minor: null });
+  it("labels live ticks by age with a real minus sign", () => {
+    const ticks = relativeTicks(NOW, 30 * MINUTE, 5 * MINUTE);
     expect(ticks.map((t) => t.label)).toEqual(["−5m", "−10m", "−15m", "−20m", "−25m"]);
     expect(ticks[0]!.t).toBe(NOW - 5 * MINUTE);
   });
 
   it("aligns history ticks to the clock", () => {
     const utc = () => 0;
-    const from = NOW - 17 * MINUTE - 20 * SECOND;
-    const ticks = absoluteTicks(from, NOW, { major: 5 * MINUTE, minor: MINUTE }, utc);
-    const majors = ticks.filter((t) => t.major);
-    expect(majors.map((t) => new Date(t.t).toISOString().slice(11, 16))).toEqual(["11:45", "11:50", "11:55", "12:00"]);
-    expect(ticks.every((t) => t.t % MINUTE === 0)).toBe(true);
-    expect(ticks.filter((t) => !t.major).every((t) => t.label === null)).toBe(true);
+    const ticks = absoluteTicks(NOW - 17 * MINUTE - 20 * SECOND, NOW, 5 * MINUTE, utc);
+    expect(ticks.map((t) => new Date(t.t).toISOString().slice(11, 16))).toEqual(["11:45", "11:50", "11:55", "12:00"]);
   });
 });
 

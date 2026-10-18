@@ -2,9 +2,8 @@
 // decision card for a turn that waits on a person. Both follow their block as
 // the window slides; the controller calls `follow` after every transform.
 import { useLayoutEffect, useRef } from "react";
-import type { BlockDetail, LaneBlock, ToolKind } from "../../shared/model";
+import type { BlockDetail, LaneBlock } from "../../shared/model";
 import type { ViewController } from "./controller";
-import { ToolGlyph, toolLabel } from "./glyphs";
 import { STATUS_LABEL, blockDuration, blockTitle, plural } from "./labels";
 import { clamp, formatDuration } from "./time";
 
@@ -59,11 +58,11 @@ function placementStyle({ rowTop, rowHeight, up }: PlacementProps): React.CSSPro
   return { top: up ? rowTop + 6 : rowTop + rowHeight - 6 };
 }
 
-const COUNT_KINDS: { key: keyof LaneBlock["counts"]; kind: ToolKind | null; one: string }[] = [
-  { key: "commands", kind: "command", one: "command" },
-  { key: "edits", kind: "edit", one: "edit" },
-  { key: "tools", kind: "tool", one: "tool call" },
-  { key: "delegations", kind: "delegation", one: "delegation" },
+const COUNT_KINDS: { key: keyof LaneBlock["counts"]; one: string }[] = [
+  { key: "commands", one: "command" },
+  { key: "edits", one: "edit" },
+  { key: "tools", one: "tool call" },
+  { key: "delegations", one: "delegation" },
 ];
 
 export interface TooltipProps extends PlacementProps {
@@ -79,37 +78,29 @@ export function BlockTooltip(props: TooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   usePopoverPlacement(ref, props, "center");
   const lane = describe(block.threadId).title;
+  const title = blockTitle(block, describe);
   const counts = COUNT_KINDS.filter((c) => block.counts[c.key] > 0);
   const summary = detail.status === "ready" ? detail.detail.summary : [];
-  const recent = detail.status === "ready" ? detail.detail.recent.slice(0, 3) : [];
   return (
     <div
       ref={ref}
       id={id}
       className="bl-pop bl-tip"
       role="dialog"
-      aria-label={`${lane}: ${blockTitle(block, describe)}`}
+      aria-label={`${lane}: ${title}`}
       data-up={up ? "" : undefined}
       data-status={block.status}
       style={placementStyle(props)}
     >
       <span className="bl-tip-head">
-        <span className="bl-tip-dot" aria-hidden="true" />
         <span className="bl-tip-lane">{lane}</span>
-        <span aria-hidden="true">·</span>
+        <span>·</span>
         <span>{STATUS_LABEL[block.status]}</span>
-        <span aria-hidden="true">·</span>
+        <span>·</span>
         <span className="bl-tip-num">{formatDuration(blockDuration(block, now))}</span>
-        {block.model && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span className="bl-tip-model">{block.model}</span>
-          </>
-        )}
       </span>
-      <span className="bl-tip-title">{blockTitle(block, describe)}</span>
       {detail.status === "loading" ? (
-        <span className="bl-tip-skeleton" aria-label="Loading summary">
+        <span className="bl-tip-skeleton" role="status" aria-label="Loading what got done">
           <span />
           <span />
           <span />
@@ -120,36 +111,26 @@ export function BlockTooltip(props: TooltipProps) {
             <li key={i}>{line}</li>
           ))}
         </ul>
-      ) : recent.length === 0 ? (
-        <span className="bl-tip-empty">
-          {detail.status === "error" ? "Couldn’t load what happened." : block.end === null ? "No detail yet." : "No summary for this turn."}
-        </span>
-      ) : null}
-      {recent.length > 0 && (
-        <ul className="bl-tip-recent" aria-label="Recent tools">
-          {recent.map((item, i) => (
-            <li key={i}>
-              <ToolGlyph kind={item.kind} className="bl-tip-glyph" />
-              <span>{item.label}</span>
-            </li>
-          ))}
-        </ul>
+      ) : (
+        <span className="bl-tip-title">{title}</span>
+      )}
+      {detail.status === "error" && <span className="bl-tip-empty">Couldn’t load what happened.</span>}
+      {detail.status === "ready" && summary.length === 0 && block.end === null && (
+        <span className="bl-tip-empty">No detail yet.</span>
       )}
       {counts.length > 0 && (
         <span className="bl-tip-counts">
           {counts.map((c) => (
-            <span key={c.key} title={c.kind ? toolLabel(c.kind) : undefined}>
-              {plural(block.counts[c.key], c.one)}
-            </span>
+            <span key={c.key}>{plural(block.counts[c.key], c.one)}</span>
           ))}
         </span>
       )}
       <span className="bl-tip-actions">
-        <button type="button" className="bl-tip-open" onClick={() => onOpen(false)}>
-          Open <kbd aria-hidden="true">↵</kbd>
+        <button type="button" className="bl-tip-open" onClick={() => onOpen(true)}>
+          Open<kbd aria-hidden="true">↵</kbd>
         </button>
-        <button type="button" className="bl-tip-open bl-tip-open--quiet" onClick={() => onOpen(true)}>
-          Open in split <kbd aria-hidden="true">⇧↵</kbd>
+        <button type="button" className="bl-tip-open bl-tip-open--quiet" onClick={() => onOpen(false)}>
+          Open here<kbd aria-hidden="true">⇧↵</kbd>
         </button>
       </span>
     </div>
@@ -171,7 +152,6 @@ export function DecisionPopover(props: DecisionProps) {
   const ask = block.ask;
   const inline = ask?.canDecideInline ?? false;
   const title = blockTitle(block, describe);
-  const lane = describe(block.threadId).title;
   return (
     <div
       ref={ref}
@@ -182,22 +162,12 @@ export function DecisionPopover(props: DecisionProps) {
       data-up={up ? "" : undefined}
       style={placementStyle(props)}
     >
-      <span className="bl-ask-eyebrow">
-        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
-          <path d="M6 1.8 10.8 10H1.2L6 1.8Z" fill="currentColor" />
-        </svg>
-        Needs you
-        <span className="bl-ask-meta">
-          {lane} · {formatDuration(now - block.start)}
-        </span>
-      </span>
       <span className="bl-ask-title">{title}</span>
       {ask?.prompt && <span className="bl-ask-text">{ask.prompt}</span>}
       <span className="bl-ask-actions">
-        <button type="button" className="bl-link" onClick={() => onOpen(false)}>
-          Open thread
+        <button type="button" className="bl-link" onClick={() => onOpen(true)}>
+          Open
         </button>
-        <span className="bl-ask-spacer" />
         {inline ? (
           <>
             <button type="button" className="bl-btn" onClick={() => onDecide("reject")}>
@@ -208,7 +178,7 @@ export function DecisionPopover(props: DecisionProps) {
             </button>
           </>
         ) : (
-          <button type="button" className="bl-btn bl-btn--primary" autoFocus onClick={() => onOpen(false)}>
+          <button type="button" className="bl-btn bl-btn--primary" autoFocus onClick={() => onOpen(true)}>
             Answer in thread
           </button>
         )}

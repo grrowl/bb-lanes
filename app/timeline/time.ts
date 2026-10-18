@@ -98,42 +98,16 @@ const TICK_STEPS = [
   2 * DAY,
 ];
 
-/** Minor ticks are drawn between majors when they are at least this far apart. */
-const MINOR_STEP: Record<number, number> = {
-  [MINUTE]: 15 * SECOND,
-  [2 * MINUTE]: 30 * SECOND,
-  [5 * MINUTE]: MINUTE,
-  [10 * MINUTE]: 2 * MINUTE,
-  [15 * MINUTE]: 5 * MINUTE,
-  [30 * MINUTE]: 5 * MINUTE,
-  [HOUR]: 15 * MINUTE,
-  [2 * HOUR]: 30 * MINUTE,
-  [3 * HOUR]: HOUR,
-  [6 * HOUR]: HOUR,
-  [12 * HOUR]: 3 * HOUR,
-  [DAY]: 6 * HOUR,
-  [2 * DAY]: 12 * HOUR,
-};
-
-export interface TickStep {
-  major: number;
-  minor: number | null;
-}
-
 /** The smallest step whose labels stay at least `minSpacingPx` apart. */
-export function chooseTickStep(span: number, widthPx: number, minSpacingPx = 84): TickStep {
+export function chooseTickStep(span: number, widthPx: number, minSpacingPx = 84): number {
   const pxPerMs = Math.max(1, widthPx) / span;
-  const major =
-    TICK_STEPS.find((step) => step * pxPerMs >= minSpacingPx) ?? TICK_STEPS[TICK_STEPS.length - 1]!;
-  const minor = MINOR_STEP[major] ?? null;
-  return { major, minor: minor !== null && minor * pxPerMs >= 9 ? minor : null };
+  return TICK_STEPS.find((step) => step * pxPerMs >= minSpacingPx) ?? TICK_STEPS[TICK_STEPS.length - 1]!;
 }
 
 export interface Tick {
   /** Absolute time of the tick. */
   t: number;
-  major: boolean;
-  label: string | null;
+  label: string;
 }
 
 /**
@@ -141,17 +115,9 @@ export interface Tick {
  * the right edge, so the grid stays still while the blocks slide beneath it,
  * exactly like the reference. Returned times are `now - k * step`.
  */
-export function relativeTicks(now: number, span: number, step: TickStep): Tick[] {
+export function relativeTicks(now: number, span: number, step: number): Tick[] {
   const ticks: Tick[] = [];
-  const minor = step.minor ?? step.major;
-  const count = Math.floor(span / minor);
-  for (let k = 1; k <= count; k += 1) {
-    const ago = k * minor;
-    if (ago >= span) break;
-    const major = ago % step.major === 0;
-    if (!major && step.minor === null) continue;
-    ticks.push({ t: now - ago, major, label: major ? `−${formatAgo(ago)}` : null });
-  }
+  for (let ago = step; ago < span; ago += step) ticks.push({ t: now - ago, label: `−${formatAgo(ago)}` });
   return ticks;
 }
 
@@ -162,17 +128,13 @@ export function relativeTicks(now: number, span: number, step: TickStep): Tick[]
 export function absoluteTicks(
   from: number,
   to: number,
-  step: TickStep,
+  step: number,
   timeZoneOffset: (t: number) => number = localOffset,
 ): Tick[] {
   const ticks: Tick[] = [];
-  const minor = step.minor ?? step.major;
-  const first = alignUp(from, minor, timeZoneOffset);
   // Guard against pathological ranges; a pane never needs more than this.
-  for (let t = first, n = 0; t <= to && n < 2000; t += minor, n += 1) {
-    const major = isAligned(t, step.major, timeZoneOffset);
-    if (!major && step.minor === null) continue;
-    ticks.push({ t, major, label: major ? formatClockTick(t, step.major) : null });
+  for (let t = alignUp(from, step, timeZoneOffset), n = 0; t <= to && n < 500; t += step, n += 1) {
+    ticks.push({ t, label: formatClockTick(t, step) });
   }
   return ticks;
 }
@@ -184,11 +146,6 @@ function localOffset(t: number): number {
 function alignUp(t: number, step: number, offset: (t: number) => number): number {
   const local = t + offset(t);
   return Math.ceil(local / step) * step - offset(t);
-}
-
-function isAligned(t: number, step: number, offset: (t: number) => number): boolean {
-  const local = t + offset(t);
-  return ((local % step) + step) % step === 0;
 }
 
 // ----- Formatting -----

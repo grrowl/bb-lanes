@@ -1,12 +1,23 @@
 // Standalone harness for the timeline engine: the scripted scenario on an
-// accelerated clock, a fake bb theme (light, dark, a custom palette), and the
-// shell's tray and card. URL parameters make screenshots reproducible:
-//   ?theme=dark&palette=paper&span=1h&density=compact&scenario=stress
-//   &elapsed=6&speed=0&width=480&open=k2&empty=1
+// accelerated clock, the reference's tray, bar and card around it, and a fake
+// bb theme for the page. URL parameters make screenshots reproducible:
+//   ?theme=dark&span=1h&density=compact&scenario=stress&elapsed=6&speed=0
+//   &width=480&collapse=project:infra&empty=1&highlight=thr_engine
+//   &spawn=dotted,circle,arrow,violet&tell=solid,none,arrow,auto
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { LaneBlock } from "../../../shared/model";
-import type { Row, RowDensity, Viewport } from "../../../shared/view";
+import {
+  DEFAULT_LINE_STYLES,
+  type HandoffLineStyle,
+  type HandoffLineStyles,
+  type LineCap,
+  type LineColor,
+  type LineStroke,
+  type Row,
+  type RowDensity,
+  type Viewport,
+} from "../../../shared/view";
 import {
   SCRIPT_MINUTES,
   describeFixture,
@@ -19,7 +30,7 @@ import {
   type Provider,
 } from "../fixtures";
 import { LanesTimeline } from "../LanesTimeline";
-import { DAY, HOUR, MINUTE } from "../time";
+import { DAY, HOUR, MINUTE, formatSpan } from "../time";
 import { installHarnessRuntime } from "./runtime";
 import "./harness.css";
 
@@ -28,7 +39,7 @@ declare const __HARNESS_INTER__: string;
 installHarnessRuntime();
 if (__HARNESS_INTER__) {
   const style = document.createElement("style");
-  style.textContent = `@font-face{font-family:"Harness Inter";src:url(${__HARNESS_INTER__}) format("woff2");font-weight:100 900;font-display:block}`;
+  style.textContent = `@font-face{font-family:"Inter Variable";src:url(${__HARNESS_INTER__}) format("woff2");font-weight:100 900;font-display:block}`;
   document.head.append(style);
 }
 
@@ -52,7 +63,6 @@ function useClock(speed: number, startElapsed: number) {
 
 function Harness() {
   const [theme, setTheme] = useState(params.get("theme") ?? "light");
-  const [palette, setPalette] = useState(params.get("palette") ?? "bb");
   const [density, setDensity] = useState<RowDensity>((params.get("density") as RowDensity) ?? "comfortable");
   const [which, setWhich] = useState(params.get("scenario") ?? "demo");
   const [viewport, setViewport] = useState<Viewport>(() => ({
@@ -69,11 +79,14 @@ function Harness() {
   const [decisions, setDecisions] = useState(() => new Map<string, "approve" | "reject">());
   const [decidedAt, setDecidedAt] = useState(() => new Map<string, number>());
   const [namesWidth, setNamesWidth] = useState(Number(params.get("names") ?? 0) || undefined);
+  const [lineStyles, setLineStyles] = useState<HandoffLineStyles>(() => ({
+    spawn: { ...DEFAULT_LINE_STYLES.spawn, ...parseLineStyle(params.get("spawn")) },
+    tell: { ...DEFAULT_LINE_STYLES.tell, ...parseLineStyle(params.get("tell")) },
+  }));
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.classList.toggle("palette-paper", palette === "paper");
-  }, [theme, palette]);
+  }, [theme]);
 
   // The script loops like the reference demo; recompute only when a scripted step is crossed.
   const elapsed = ((now - base) / MINUTE) % (SCRIPT_MINUTES + 1);
@@ -92,31 +105,21 @@ function Harness() {
   const threads = useMemo(() => new Map(fixture.threads.map((t) => [t.id, t])), [fixture.threads]);
   const describe = useMemo(() => describeFixture(fixture.threads), [fixture.threads]);
 
-  const toggle = (set: Set<string>, id: string) => {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  };
   const onToggleRow = useCallback((row: Row) => {
-    if (row.kind === "group") setCollapsedGroups((s) => toggle(s, row.id));
-    else setCollapsedLanes((s) => toggle(s, row.id));
+    const toggle = (set: Set<string>) => {
+      const next = new Set(set);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.add(row.id);
+      return next;
+    };
+    if (row.kind === "group") setCollapsedGroups(toggle);
+    else setCollapsedLanes(toggle);
   }, []);
 
   const renderRowHeader = useCallback(
     (row: Row, ctx: { hovered: boolean; focused: boolean }) =>
       row.kind === "group" ? (
-        <button type="button" className="hh-group" aria-expanded={!row.collapsed} onClick={() => onToggleRow(row)}>
-          <svg className="hh-chev" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M18 9C18 9 13.58 15 12 15C10.42 15 6 9 6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="hh-group-label">{row.label}</span>
-          <span className="hh-counts">
-            {row.counts.waiting > 0 && <span data-kind="warn">▲ {row.counts.waiting}</span>}
-            {row.counts.running > 0 && <span data-kind="run">● {row.counts.running}</span>}
-            <span>{row.counts.total}</span>
-          </span>
-        </button>
+        <GroupHeader row={row} onToggle={() => onToggleRow(row)} />
       ) : (
         <LaneHeader row={row} thread={threads.get(row.id)} hovered={ctx.hovered} onToggle={() => onToggleRow(row)} />
       ),
@@ -129,7 +132,8 @@ function Harness() {
   }, []);
 
   const loadDetail = useCallback(
-    (block: LaneBlock) => new Promise<ReturnType<typeof fixtureDetail>>((resolve) => setTimeout(() => resolve(fixtureDetail(block)), 450)),
+    (block: LaneBlock) =>
+      new Promise<ReturnType<typeof fixtureDetail>>((resolve) => setTimeout(() => resolve(fixtureDetail(block)), 450)),
     [],
   );
 
@@ -143,24 +147,32 @@ function Harness() {
         <strong>Lanes harness</strong>
         <Seg value={which} options={["demo", "stress"]} onChange={setWhich} />
         <Seg value={theme} options={["light", "dark"]} onChange={setTheme} />
-        <Seg value={palette} options={["bb", "paper"]} onChange={setPalette} />
         <Seg
           value={Object.entries(SPANS).find(([, v]) => v === viewport.span)?.[0] ?? ""}
           options={Object.keys(SPANS)}
           onChange={(key) => setViewport((v) => ({ ...v, span: SPANS[key]! }))}
         />
-        <Seg value={viewport.live ? "live" : "paused"} options={["live"]} onChange={() => setViewport((v) => ({ ...v, live: true }))} />
+        <Seg value={viewport.live ? "live" : ""} options={["live"]} onChange={() => setViewport((v) => ({ ...v, live: true }))} />
         <Seg value={density} options={["comfortable", "compact"]} onChange={(d) => setDensity(d as RowDensity)} />
-        <span>{Math.round(viewport.span / MINUTE)}m window · {viewport.live ? "live" : "history"}</span>
+        <LineControls styles={lineStyles} onChange={setLineStyles} />
       </div>
       <div className="hx-stage">
-        <div className="hx-tray" style={width ? { flex: `0 0 ${width}px` } : undefined}>
+        <div className="bl-theme hx-tray" style={width ? { flex: `0 0 ${width}px` } : undefined}>
+          <header className="hx-up-bar">
+            <span className="hx-up-spark">
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M7 1.2c.4 2.9 1.9 4.4 4.8 4.8-2.9.4-4.4 1.9-4.8 4.8C6.6 7.9 5.1 6.4 2.2 6 5.1 5.6 6.6 4.1 7 1.2Z" fill="currentColor" />
+                <circle cx="11.6" cy="11.4" r="1.1" fill="currentColor" opacity="0.55" />
+              </svg>
+            </span>
+            <span className="hx-up-title">Lanes</span>
+            <span className="hx-up-summary">
+              <span data-kind="running">{running} running</span>
+              {waiting > 0 && <span data-kind="needs">{waiting} need you</span>}
+            </span>
+            <span className="hx-up-window">{formatSpan(viewport.span)}</span>
+          </header>
           <div className="hx-card">
-            <div className="hx-toolbar">
-              <b>Lanes</b>
-              <span className="hx-chip">{running} running</span>
-              {waiting > 0 && <span className="hx-chip" data-kind="needs">{waiting} need you</span>}
-            </div>
             <LanesTimeline
               rows={rows}
               blocks={fixture.blocks}
@@ -175,10 +187,10 @@ function Harness() {
               onToggleRow={onToggleRow}
               loadDetail={loadDetail}
               describeThread={describe}
-              highlightedThreadId={params.get("highlight") ?? "thr_engine"}
+              highlightedThreadId={params.get("highlight")}
               namesWidth={namesWidth}
               onNamesWidthChange={setNamesWidth}
-              className="hx-timeline"
+              lineStyles={lineStyles}
             />
           </div>
         </div>
@@ -199,8 +211,73 @@ function Seg({ value, options, onChange }: { value: string; options: string[]; o
   );
 }
 
+const STROKES: LineStroke[] = ["solid", "dashed", "dotted"];
+const CAPS: LineCap[] = ["none", "dot", "circle", "arrow"];
+const COLORS: LineColor[] = ["auto", "neutral", "blue", "red", "amber", "green", "violet"];
+
+/** `?spawn=dotted,circle,arrow,violet` → a partial line style. */
+function parseLineStyle(value: string | null): Partial<HandoffLineStyle> {
+  if (!value) return {};
+  const [stroke, start, end, color] = value.split(",");
+  const pick = <T extends string>(options: readonly T[], v: string | undefined) =>
+    options.includes(v as T) ? (v as T) : undefined;
+  const style: Partial<HandoffLineStyle> = {};
+  const s = pick(STROKES, stroke);
+  const a = pick(CAPS, start);
+  const b = pick(CAPS, end);
+  const c = pick(COLORS, color);
+  if (s) style.stroke = s;
+  if (a) style.start = a;
+  if (b) style.end = b;
+  if (c) style.color = c;
+  return style;
+}
+
+/** Hand-off line styles per kind, as the shell's "Lines" menu sets them. */
+function LineControls({ styles, onChange }: { styles: HandoffLineStyles; onChange(next: HandoffLineStyles): void }) {
+  const field = <K extends keyof HandoffLineStyle>(kind: "spawn" | "tell", key: K, options: readonly string[]) => (
+    <select
+      value={styles[kind][key]}
+      aria-label={`${kind} ${key}`}
+      onChange={(event) => onChange({ ...styles, [kind]: { ...styles[kind], [key]: event.target.value } })}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
+  return (
+    <span className="hx-lines">
+      {(["spawn", "tell"] as const).map((kind) => (
+        <span key={kind}>
+          {kind} {field(kind, "stroke", STROKES)} {field(kind, "start", CAPS)}→{field(kind, "end", CAPS)} {field(kind, "color", COLORS)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function GroupHeader({ row, onToggle }: { row: Extract<Row, { kind: "group" }>; onToggle(): void }) {
+  return (
+    <button type="button" className="hx-group" aria-expanded={!row.collapsed} onClick={onToggle}>
+      <svg className="hx-chev" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="hx-group-label">{row.label}</span>
+      <span className="hx-group-counts">
+        {row.counts.waiting > 0 && <span data-kind="needs">{row.counts.waiting}</span>}
+        {row.counts.running > 0 && <span data-kind="running">{row.counts.running}</span>}
+        <span>{row.counts.total}</span>
+      </span>
+    </button>
+  );
+}
+
 const STATE_LABEL: Partial<Record<string, string>> = { idle: "Idle", waiting: "Needs you", failed: "Failed", queued: "Queued" };
 
+/** The reference's agent cell: a logo on a white tile, the name with its state tag, the model. */
 function LaneHeader({
   row,
   thread,
@@ -215,31 +292,21 @@ function LaneHeader({
   const label = STATE_LABEL[row.state];
   const lastLabel = useRef(label ?? "Idle");
   if (label) lastLabel.current = label;
-  const step = 22;
-  const centre = (depth: number) => 12 + depth * step + 13 - 0.5;
   return (
-    <div className="hh" style={{ paddingLeft: 12 + row.depth * step }}>
-      {row.depth > 0 && (
-        <>
-          <span className="hh-guide" style={{ left: centre(row.depth - 1), top: 0, bottom: row.isLastChild ? "50%" : 0, width: 1 }} />
-          <span className="hh-guide" style={{ left: centre(row.depth - 1), top: "50%", height: 1, width: step - 15 }} />
-        </>
-      )}
-      {row.hasChildren && !row.collapsed && (
-        <span className="hh-guide" style={{ left: centre(row.depth), top: "calc(50% + 13px)", bottom: 0, width: 1 }} />
-      )}
-      <span className="hh-avatar" onClick={row.hasChildren ? onToggle : undefined} data-hovered={hovered ? "" : undefined}>
+    <div className="hx-agent" data-depth={row.depth} data-hovered={hovered ? "" : undefined}>
+      {row.depth > 0 && <span className="hx-guide" data-last={row.isLastChild ? "" : undefined} />}
+      <span className="hx-avatar" data-logo="" onClick={row.hasChildren ? onToggle : undefined}>
         <ProviderLogo provider={thread?.provider ?? "anthropic"} />
       </span>
-      <span className="hh-who">
-        <span className="hh-line">
-          <span className="hh-name">{thread?.title ?? row.id}</span>
-          <span className="hh-state" data-show={label ? "" : undefined} data-state={row.state}>
+      <span className="hx-who" data-state={row.state}>
+        <span className="hx-name-line">
+          <span className="hx-name">{thread?.title ?? row.id}</span>
+          <span className="hx-state" data-show={label ? "" : undefined} aria-hidden={!label}>
             <span>{lastLabel.current}</span>
           </span>
         </span>
-        <span className="hh-sub">
-          {thread?.model} · {thread?.branch}
+        <span className="hx-model">
+          <span className="hx-model-name">{thread?.model}</span>
         </span>
       </span>
     </div>
@@ -250,7 +317,7 @@ function LaneHeader({
 function ProviderLogo({ provider }: { provider: Provider }) {
   if (provider === "openai") {
     return (
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ color: "var(--foreground)" }}>
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ color: "var(--bl-ink)" }}>
         <path d={OPENAI_MARK} />
       </svg>
     );
@@ -259,14 +326,14 @@ function ProviderLogo({ provider }: { provider: Provider }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <defs>
-          <linearGradient id="hh-gemini" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+          <linearGradient id="hx-gemini" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
             <stop stopColor="#1C7DFF" />
             <stop offset="0.52" stopColor="#1C69FF" />
             <stop offset="1" stopColor="#B04DFF" />
           </linearGradient>
         </defs>
         <path
-          fill="url(#hh-gemini)"
+          fill="url(#hx-gemini)"
           d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"
         />
       </svg>

@@ -26,13 +26,8 @@ export const RulerTicks = memo(function RulerTicks({ ticks, live }: { ticks: Pla
   return (
     <>
       {ticks.map((tick) => (
-        <span
-          key={`${live ? "l" : "h"}${tick.t}`}
-          className="bl-tick"
-          data-major={tick.major ? "" : undefined}
-          style={{ left: `${tick.x}%` }}
-        >
-          {tick.label !== null && <span className="bl-tick-label">{tick.label}</span>}
+        <span key={`${live ? "l" : "h"}${tick.t}`} className="bl-tick" style={{ left: `${tick.x}%` }}>
+          <span className="bl-tick-label">{tick.label}</span>
         </span>
       ))}
     </>
@@ -42,11 +37,9 @@ export const RulerTicks = memo(function RulerTicks({ ticks, live }: { ticks: Pla
 export const GridLines = memo(function GridLines({ ticks, live }: { ticks: PlacedTick[]; live: boolean }) {
   return (
     <>
-      {ticks.map((tick) =>
-        tick.major ? (
-          <span key={`${live ? "l" : "h"}${tick.t}`} className="bl-gridline" style={{ left: `${tick.x}%` }} />
-        ) : null,
-      )}
+      {ticks.map((tick) => (
+        <span key={`${live ? "l" : "h"}${tick.t}`} className="bl-gridline" style={{ left: `${tick.x}%` }} />
+      ))}
     </>
   );
 });

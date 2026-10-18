@@ -56,6 +56,9 @@
   --bl-hatch: color-mix(in srgb, var(--bl-text) 26%, transparent);
   --bl-bar-failed: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
   --bl-dim: 0.35;
+  /* Hand-off line colours beyond the reference's three states. */
+  --bl-green-fg: #1a7f4b;
+  --bl-violet-fg: #6e56cf;
 }
 
 /* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html> */
@@ -95,6 +98,8 @@
   --bl-tip-dot: rgba(0, 0, 0, 0.4);
   --bl-tip-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
   --bl-dim: 0.4;
+  --bl-green-fg: #4fd18b;
+  --bl-violet-fg: #b19cff;
 }
 
 .bl {
@@ -348,48 +353,164 @@
   left: 0;
   width: 100%;
   overflow: visible;
-  color: var(--bl-rail);
   pointer-events: none;
   transition: opacity 220ms ease 80ms;
 }
+/* Hand-off lines: the reference's 1px dashed rail, with a stroke, cap and
+ * colour per kind (lineStyles). "auto" colours follow the target turn. */
 .bl-curve {
   fill: none;
-  stroke: var(--bl-rail);
+  stroke: var(--bl-lc-line);
   stroke-width: 1;
   stroke-dasharray: 3 3;
   transition:
     opacity 160ms ease,
-    stroke 160ms ease;
+    stroke-width 120ms ease;
+}
+.bl-curve[data-stroke="solid"] {
+  stroke-dasharray: none;
+}
+.bl-curve[data-stroke="dotted"] {
+  stroke-dasharray: 0.5 2.5;
+  stroke-linecap: round;
+  stroke-width: 1.5;
 }
 .bl-curve[data-live] {
-  stroke: var(--bl-run-edge);
   animation: bl-flow 900ms linear infinite;
 }
-.bl-dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border: 1px solid var(--bl-rail);
-  border-radius: 50%;
-  background: var(--bl-card);
+/* A live solid line flows too: it breaks into long dashes that travel. */
+.bl-curve[data-live][data-stroke="solid"] {
+  stroke-dasharray: 9 3;
+  animation-name: bl-flow-long;
+}
+.bl-curve-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  pointer-events: stroke;
+}
+[data-color="neutral"] {
+  --bl-lc: var(--bl-muted);
+  --bl-lc-line: var(--bl-rail);
+}
+[data-color="blue"] {
+  --bl-lc: var(--bl-run-fg);
+  --bl-lc-line: var(--bl-run-edge);
+}
+[data-color="amber"] {
+  --bl-lc: var(--bl-warn-fg);
+  --bl-lc-line: color-mix(in srgb, var(--bl-warn-fg) 55%, transparent);
+}
+[data-color="red"] {
+  --bl-lc: var(--bl-danger-fg);
+  --bl-lc-line: color-mix(in srgb, var(--bl-danger-fg) 55%, transparent);
+}
+[data-color="green"] {
+  --bl-lc: var(--bl-green-fg);
+  --bl-lc-line: color-mix(in srgb, var(--bl-green-fg) 55%, transparent);
+}
+[data-color="violet"] {
+  --bl-lc: var(--bl-violet-fg);
+  --bl-lc-line: color-mix(in srgb, var(--bl-violet-fg) 55%, transparent);
+}
+.bl-curves linearGradient {
+  color: var(--bl-lc-line);
+}
+/* Caps sit on top of the blocks: a pin on the sender, an arrow into the target. */
+.bl-caps {
   transition: opacity 160ms ease;
 }
-.bl-dot[data-live] {
-  border-color: var(--bl-run-edge);
+.bl-cap {
+  position: absolute;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  color: var(--bl-lc);
+  pointer-events: none;
+}
+.bl-cap::before {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+.bl-cap[data-cap="dot"]::before {
+  top: -2.5px;
+  left: -2.5px;
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px var(--bl-card);
+}
+.bl-cap[data-cap="circle"]::before {
+  top: -3.5px;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  background: var(--bl-card);
+}
+.bl-cap svg {
+  position: absolute;
+  top: -4px;
+  left: -7px;
+  width: 6px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bl-cap[data-at="start"] svg {
+  left: 1px;
+}
+/* Naming a hovered line, in the tooltip's look. */
+.bl-line-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bl-line-tip[data-show] {
+  opacity: 1;
+}
+.bl-line-tip > span {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bl-tip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--bl-tip-text);
+  white-space: nowrap;
+  translate: -50% 0;
 }
 
+/* Rows let the pointer through to the lines beneath; only blocks catch it. */
 .bl-lane,
 .bl-grouptrack {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  pointer-events: none;
+}
+.bl-slot,
+.bl-strip {
+  pointer-events: auto;
 }
 .bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name) {
   transition: transform 320ms ease;
 }
-.bl[data-reflow] :is(.bl-curves, .bl-dot) {
+.bl[data-reflow] :is(.bl-curves, .bl-caps) {
   opacity: 0;
   transition: none;
 }
@@ -459,12 +580,14 @@
   width: 12px;
   height: 12px;
 }
-@container (max-width: 72px) {
+/* Container sizes are the block's content box (its width less 20px of padding):
+ * glyphs go below 72px, the title below 28px, as in the spec. */
+@container (max-width: 52px) {
   .bl-tools {
     display: none;
   }
 }
-@container (max-width: 28px) {
+@container (max-width: 8px) {
   .bl-content {
     display: none;
   }
@@ -548,7 +671,7 @@
 /* Clusters: short turns too close to tell apart, drawn as a barcode of where
  * each ran (the gradient is set inline), with the count on a flag-like chip. */
 .bl-cluster {
-  --bl-bar: var(--bl-rail);
+  --bl-bar: color-mix(in srgb, var(--bl-rail) 65%, var(--bl-done));
   --bl-bar-interrupted: var(--bl-faint);
   display: flex;
   align-items: center;
@@ -945,6 +1068,51 @@
   animation: bl-pulse 1600ms ease-in-out infinite;
 }
 
+/* Scrub bar: where the window sits in the loaded history. */
+.bl-scrub {
+  position: absolute;
+  right: var(--bl-gutter);
+  bottom: 0;
+  left: calc(var(--bl-names) + 40px);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  height: 12px;
+  cursor: pointer;
+}
+.bl-scrub[data-full] {
+  display: none;
+}
+.bl-scrub-rail {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--bl-line);
+  transition: height 160ms ease;
+}
+.bl-scrub-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 12px;
+  border-radius: 999px;
+  background: var(--bl-rail);
+  cursor: grab;
+  transition: background-color 160ms ease;
+}
+.bl-scrub:hover .bl-scrub-rail,
+.bl-scrub[data-dragging] .bl-scrub-rail {
+  height: 5px;
+}
+.bl-scrub:hover .bl-scrub-thumb,
+.bl-scrub[data-dragging] .bl-scrub-thumb {
+  background: var(--bl-muted);
+}
+.bl-scrub[data-dragging] .bl-scrub-thumb {
+  cursor: grabbing;
+}
+
 .bl-resize {
   position: absolute;
   top: 0;
@@ -1088,6 +1256,11 @@
 @keyframes bl-flow {
   to {
     stroke-dashoffset: -6;
+  }
+}
+@keyframes bl-flow-long {
+  to {
+    stroke-dashoffset: -12;
   }
 }
 @keyframes bl-in {

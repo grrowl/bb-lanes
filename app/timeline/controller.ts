@@ -94,6 +94,10 @@ export class ViewController {
   readonly nowPinned = new Set<HTMLElement>();
   /** Called after every transform write (popover placement). */
   readonly followers = new Set<() => void>();
+  /** The scrub bar's thumb, placed after every transform write. */
+  scrubThumb: HTMLElement | null = null;
+  /** Earliest loaded block start: the scrub bar spans from here to now. */
+  historyStart = Infinity;
   /**
    * Block contents that stay readable when their block starts before the
    * window: they slide along the left edge like a sticky header.
@@ -150,6 +154,7 @@ export class ViewController {
     this.framePending = false;
     this.lastShift = NaN;
     this.lastNowShift = NaN;
+    this.lastScrub = "";
     this.apply(this.clock.read());
     this.kick();
   }
@@ -483,6 +488,7 @@ export class ViewController {
       for (const el of this.nowPinned) el.style.transform = transform;
     }
     this.placeLabels(end);
+    this.placeScrub(end, now);
     for (const follow of this.followers) follow();
     const view = this.view;
     const frame = this.frame;
@@ -505,6 +511,53 @@ export class ViewController {
       this.labelsQueued = false;
       this.placeLabels(this.view.end + this.overscroll);
     });
+  }
+
+  /** The span of time the scrub bar covers: loaded history up to now. */
+  scrubRange(now = this.clock.read()): { start: number; length: number } {
+    const start = Math.min(this.historyStart, now - this.view.span, now - this.view.span * 4);
+    return { start, length: Math.max(1, now - start) };
+  }
+
+  private lastScrub = "";
+  private placeScrub(end: number, now: number): void {
+    const thumb = this.scrubThumb;
+    if (!thumb) return;
+    const { start, length } = this.scrubRange(now);
+    const width = Math.min(1, this.view.span / length);
+    const left = clamp((end - this.view.span - start) / length, 0, 1 - width);
+    const key = `${(left * 100).toFixed(2)}|${(width * 100).toFixed(2)}`;
+    if (key === this.lastScrub) return;
+    this.lastScrub = key;
+    thumb.style.left = `${left * 100}%`;
+    thumb.style.width = `${width * 100}%`;
+    const bar = thumb.closest<HTMLElement>(".bl-scrub");
+    if (bar) bar.toggleAttribute("data-full", width > 0.995);
+  }
+
+  /** Dragging the scrub thumb by a fraction of the bar. */
+  scrubBy(fraction: number): void {
+    if (fraction === 0) return;
+    this.stopMotion();
+    const now = this.clock.read();
+    const { length } = this.scrubRange(now);
+    const end = clamp(this.view.end + fraction * length, now - MAX_HISTORY, now);
+    this.view = { ...this.view, end, live: isAtNow(end, now, this.view.span, this.width) };
+    this.afterChange(false);
+  }
+
+  /** A click on the scrub bar glides the window to centre on that point. */
+  scrubTo(fraction: number): void {
+    const now = this.clock.read();
+    const { start, length } = this.scrubRange(now);
+    const end = Math.min(now, start + fraction * length + this.view.span / 2);
+    const live = isAtNow(end, now, this.view.span, this.width);
+    this.animateTo(live ? "now" : end, this.view.span, live);
+  }
+
+  /** The drag on the scrub thumb ended. */
+  settle(): void {
+    this.afterChange(true);
   }
 
   private placeLabels(end: number): void {
