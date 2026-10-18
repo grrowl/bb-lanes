@@ -1,5 +1,8 @@
 # bb Lanes — spec
 
+Read `AGENTS.md` first: it holds our principles and the fixed opinions that
+override anything here.
+
 Lanes is a bb plugin that shows **where every agent is right now** as a live
 timeline: one lane per thread, one block per agent turn growing into "now",
 hand-off curves drawn between threads, and approvals answered right on the
@@ -145,7 +148,7 @@ native sidebar, theme tokens, status colours, and builtin plugins such as
   tag (Idle / Needs you / Failed / Queued) that collapses away while running,
   exactly like the reference. Unread threads get a small dot. The thread
   open in another pane is highlighted.
-- Preferences (group by, filter, span, density, collapsed groups, names
+- Preferences (group by, filter, span, collapsed groups, names
   width) persist in `localStorage` keyed by `experimental_usePluginId()`.
 
 ### Timeline
@@ -155,7 +158,9 @@ native sidebar, theme tokens, status colours, and builtin plugins such as
   the end; failed = red tint; interrupted = done fill with a hatched end.
   Tool glyphs (≤3) before the title. Blocks narrower than ~28px drop the
   label; narrower than 6px still render as a 6px sliver.
-- Hand-off curves between lanes (spawn and tell), live ones flow. Hovering a
+- Hand-off lines between lanes, one fixed style per kind (`HANDOFF_LINES`
+  in `shared/view.ts`; see AGENTS.md "Our opinions"). They leave the
+  sender's lane at the moment in the reply, not the block's end. Live ones flow. Hovering a
   block or lane emphasises its hand-offs and the lanes on the other end and
   dims unrelated blocks (opacity, not hiding).
 - Pan and zoom: horizontal wheel / trackpad swipe or drag on empty track

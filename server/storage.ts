@@ -54,9 +54,14 @@ export class LanesStorage {
   private resolveHandoffs(rows: JsonRow[]): LaneHandoff[] {
     const source = this.db.prepare(`SELECT id FROM lane_blocks WHERE thread_id = ? AND start <= ?
       AND (end IS NULL OR end >= ?) ORDER BY start DESC LIMIT 1`);
+    const lastEnded = this.db.prepare(`SELECT id FROM lane_blocks WHERE thread_id = ? AND end <= ?
+      ORDER BY end DESC, start DESC, id DESC LIMIT 1`);
     return rows.map(row => {
       const handoff = JSON.parse(row.json) as LaneHandoff;
-      handoff.fromBlockId = (source.get(handoff.fromThreadId, handoff.at, handoff.at) as { id: string } | undefined)?.id ?? null;
+      const block = handoff.kind === "end"
+        ? lastEnded.get(handoff.fromThreadId, handoff.at)
+        : source.get(handoff.fromThreadId, handoff.at, handoff.at);
+      handoff.fromBlockId = (block as { id: string } | undefined)?.id ?? null;
       return handoff;
     });
   }

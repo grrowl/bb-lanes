@@ -1,5 +1,5 @@
 // The row of controls inside the card, above the timeline: how lanes are
-// grouped, which lanes show, search, and density. On a narrow pane it
+// grouped, which lanes show, and search. On a narrow pane it
 // condenses to the search field and one View menu.
 import type { ReactNode, RefObject } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { Hint } from "./Hint";
 import { GROUP_MODES, LANE_FILTERS, type GroupMode, type LaneFilter } from "../grouping/types";
 import type { SurfaceActions, SurfaceState } from "../surface-store";
 
@@ -180,7 +179,6 @@ function StatusNote({ status }: { status: ToolbarProps["status"] }) {
 
 export function Toolbar({ state, actions, counts, groupIds, condensed, trailing, searchRef, status }: ToolbarProps) {
   const groupLabel = GROUP_MODES.find((mode) => mode.id === state.groupMode)?.label ?? "Project";
-  const compact = state.density === "compact";
   const anyExpanded = groupIds.some((id) => !state.collapsedGroups.includes(id));
 
   const groupMenu = (
@@ -243,12 +241,7 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">Group by</DropdownMenuLabel>
             <GroupItems value={state.groupMode} onChange={actions.setGroupMode} />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => actions.setDensity(compact ? "comfortable" : "compact")}>
-              <Icon name="Rows2" aria-hidden />
-              Compact rows
-              <Check on={compact} />
-            </DropdownMenuItem>
+            {collapseItems === null ? null : <DropdownMenuSeparator />}
             {collapseItems}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -264,18 +257,6 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
       <div className="ml-auto flex min-w-0 items-center gap-1">
         <StatusNote status={status} />
         {trailing}
-        <Hint label={compact ? "Comfortable rows" : "Compact rows"}>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="size-7 px-0"
-            aria-pressed={compact}
-            aria-label="Compact rows"
-            onClick={() => actions.setDensity(compact ? "comfortable" : "compact")}
-          >
-            <Icon name="Rows2" className="size-3.5" aria-hidden />
-          </Button>
-        </Hint>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="size-7 px-0" aria-label="More options">

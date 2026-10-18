@@ -24,6 +24,71 @@ describe("thread event fold", () => {
     expect(state.handoffs).toEqual([{ id: "parent>turn", kind: "spawn", fromThreadId: "parent", fromBlockId: null,
       toThreadId: "child", toBlockId: "turn", at: 10 }]);
   });
+  it.each(["child-completed", "child-failed"])("indexes a %s report into the parent's new turn", systemMessageKind => {
+    const report = event(1, "client/turn/requested", undefined, {
+      requestId: "report", source: "tell", initiator: "system", senderThreadId: null,
+      systemMessageKind, systemMessageSubject: { kind: "thread", threadId: "worker",
+        outcomes: [{ threadId: "worker", status: systemMessageKind === "child-failed" ? "failed" : "completed" }] },
+      input: [{ type: "text", text: "[bb system]\n\nWorker finished" }],
+    });
+    const events = [report, started(2), accepted(3, "report")];
+    const state = fold(events);
+    expect(state.handoffs).toEqual([{ id: "worker>turn", kind: "end", fromThreadId: "worker", fromBlockId: null,
+      toThreadId: "child", toBlockId: "turn", at: 10 }]);
+    expect(state.turns.turn.block).toMatchObject({ initiator: "system", senderThreadId: null, title: "Worker finished" });
+    expect(events.reduce((state, event) => foldEvents(state, [event], thread), emptyIndex())).toEqual(state);
+  });
+  it("links child reports that join an existing turn and supersede its earlier tell", () => {
+    const state = fold([request(1, "initial"), started(2), accepted(3, "initial"),
+      request(4, "tell", "tell", "worker"), accepted(5, "tell"),
+      event(6, "client/turn/requested", undefined, { requestId: "report", source: "tell", initiator: "system",
+        systemMessageKind: "child-completed", systemMessageSubject: { kind: "thread", threadId: "worker", outcomes: [] } }),
+      accepted(7, "report")]);
+    expect(state.handoffs).toMatchObject([{ kind: "end", fromThreadId: "worker", toBlockId: "turn", at: 60 }]);
+    expect(state.handoffs).toHaveLength(1);
+    expect(state.turns.turn.block.title).toBe("initial first line");
+  });
+  it.each([
+    { initiator: "user", systemMessageKind: "child-completed", systemMessageSubject: { kind: "thread", threadId: "worker" } },
+    { initiator: "system", systemMessageKind: "other", systemMessageSubject: { kind: "thread", threadId: "worker" } },
+    { initiator: "system", systemMessageKind: "child-failed", systemMessageSubject: { kind: "project", threadId: "worker" } },
+    { initiator: "system", systemMessageKind: "child-completed", systemMessageSubject: { kind: "thread" } },
+  ])("ignores incomplete or unrelated child reports", data => {
+    expect(fold([event(1, "client/turn/requested", undefined, { source: "tell", ...data }), started(2)]).handoffs).toEqual([]);
+  });
+  it("connects a fork's source to its first turn, preserving the initial request time", () => {
+    const fork = { ...thread, originKind: "fork", sourceThreadId: "source" };
+    const events = [request(1, "r", "spawn"), started(2), accepted(3, "r"),
+      request(4, "steer"), accepted(5, "steer"), event(6, "turn/completed", "turn", { status: "completed" }),
+      request(7, "later", "spawn"), started(8, "second"), accepted(9, "later", "second")];
+    const state = foldEvents(emptyIndex(), events, fork);
+    expect(state.handoffs).toEqual([{ id: "source>turn", kind: "fork", fromThreadId: "source", fromBlockId: null,
+      toThreadId: "child", toBlockId: "turn", at: 10 }]);
+    expect(events.reduce((state, event) => foldEvents(state, [event], fork), emptyIndex())).toEqual(state);
+  });
+  it("indexes a fork even if its first provider turn has no recorded input", () => {
+    const state = foldEvents(emptyIndex(), [started(1)], { ...thread, originKind: "fork", sourceThreadId: "source" });
+    expect(state.handoffs).toMatchObject([{ kind: "fork", fromThreadId: "source", at: 10 }]);
+  });
+  it.each([
+    { originKind: "fork", sourceThreadId: null, parentThreadId: "parent" },
+    { sourceThreadId: "parent", parentThreadId: null },
+  ])("falls back to spawn when fork metadata is missing", metadata => {
+    const state = foldEvents(emptyIndex(), [request(1, "r", "spawn"), started(2)], { ...thread, ...metadata });
+    expect(state.handoffs).toMatchObject([{ kind: "spawn", fromThreadId: "parent" }]);
+  });
+  it("keeps the fork edge when an accepted input corrects a proximity guess", () => {
+    const fork = { ...thread, originKind: "fork", sourceThreadId: "source" };
+    const state = foldEvents(emptyIndex(), [request(1, "first", "spawn"), request(2, "second"), started(3), accepted(4, "first")], fork);
+    expect(state.handoffs).toMatchObject([{ kind: "fork", fromThreadId: "source", at: 10 }]);
+    expect(state.handoffs).toHaveLength(1);
+  });
+  it("does not move a fork edge to a later turn after its first turn is removed", () => {
+    const fork = { ...thread, originKind: "fork", sourceThreadId: "source" };
+    const state = foldEvents(emptyIndex(), [started(1), event(2, "system/operation", undefined,
+      { metadata: { removedTurnId: "turn" } }), started(3, "second")], fork);
+    expect(state.handoffs).toEqual([]);
+  });
   it("allows provider turns without an input request", () => {
     expect(fold([started(1)]).turns.turn.block).toMatchObject({ title: "", status: "running", end: null });
   });
