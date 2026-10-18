@@ -480,6 +480,13 @@
 .lanes-name-line:is([data-state="waiting"], [data-state="failed"]) {
   flex-wrap: nowrap;
 }
+/* A cell too narrow to hold a readable title beside "Needs you" keeps the
+ * title; the lane's block still says it needs you. */
+@container (max-width: 199px) {
+  .lanes-name-line:is([data-state="waiting"], [data-state="failed"]) {
+    flex-wrap: wrap;
+  }
+}
 .lanes-name {
   flex: 0 1 auto;
   min-width: 0;
@@ -701,14 +708,18 @@ a.lanes-name:hover {
   font-weight: 400;
   color: var(--bl-muted);
 }
-/* The summary keeps what fits, in upstream's order; the rest wraps away. */
+/* The summary keeps the parts that fit whole, in upstream's order; the rest
+ * wrap onto a hidden line. The zero-width lead lets even the first part go. */
 .lanes-group .lanes-summary {
   flex: 1 1 0;
   flex-wrap: wrap;
-  row-gap: 8px;
+  gap: 8px 10px;
   height: 16px;
-  gap: 0 10px;
   overflow: clip;
+}
+.lanes-group .lanes-summary::before {
+  content: "";
+  margin-right: -10px;
 }
 
 /* Narrow names column (the avatars only): text gives way. */

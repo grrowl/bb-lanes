@@ -12,6 +12,8 @@ export interface RowMetrics {
   group: number;
   /** Where a lane's blocks are centred, from the lane's top: hand-off lines attach there. */
   laneMid: number;
+  /** Half a block's height: a line that lands mid-turn meets the block's edge this far from its middle. */
+  blockHalf: number;
 }
 
 /**
@@ -20,8 +22,10 @@ export interface RowMetrics {
  * blocks: 6px, the 14px caption, 2px, then upstream's 28px block and 6px.
  */
 export function rowMetrics(density: RowDensity, narrow = false): RowMetrics {
-  if (narrow) return { lane: 56, group: 32, laneMid: 36 };
-  return density === "compact" ? { lane: 36, group: 28, laneMid: 18 } : { lane: 48, group: 32, laneMid: 24 };
+  if (narrow) return { lane: 56, group: 32, laneMid: 36, blockHalf: 14 };
+  return density === "compact"
+    ? { lane: 36, group: 28, laneMid: 18, blockHalf: 12 }
+    : { lane: 48, group: 32, laneMid: 24, blockHalf: 14 };
 }
 
 export interface RowLayout {
@@ -30,6 +34,8 @@ export interface RowLayout {
   heights: number[];
   /** Where hand-off lines attach in each row: a lane's block centre, a group row's middle. */
   mids: number[];
+  /** Half a block's height, for lines that land on a block's edge. */
+  blockHalf: number;
   total: number;
   /** Row index of each visible lane, by thread id. */
   laneRowByThread: Map<string, number>;
@@ -72,7 +78,7 @@ export function layoutRows(rows: Row[], density: RowDensity, narrow = false): Ro
     }
   });
   for (const threadId of laneRowByThread.keys()) proxyRowByThread.delete(threadId);
-  return { rows, tops, heights, mids, total: y, laneRowByThread, proxyRowByThread };
+  return { rows, tops, heights, mids, blockHalf: metrics.blockHalf, total: y, laneRowByThread, proxyRowByThread };
 }
 
 export function rowKey(row: Row): string {
@@ -356,6 +362,12 @@ export interface CurveEnd {
   /** Row the endpoint is drawn in, or null when the thread is not shown. */
   row: number | null;
   proxy: boolean;
+  /**
+   * The line lands partway into a turn already under way (a child reporting
+   * into its parent's running turn), so it meets the block's edge rather than
+   * its start.
+   */
+  midTurn?: boolean;
 }
 
 export interface Curve {
@@ -397,7 +409,7 @@ export function handoffCurves(
     curves.push({
       handoff,
       from: { t: t1, row: a?.index ?? null, proxy: a?.proxy ?? false },
-      to: { t: t2, row: b?.index ?? null, proxy: b?.proxy ?? false },
+      to: { t: t2, row: b?.index ?? null, proxy: b?.proxy ?? false, midTurn: t2 > target.start },
       live: target.status === "running" || target.status === "waiting",
     });
   }
@@ -419,6 +431,17 @@ export function handoffPath(x1: number, y1: number, x2: number, y2: number): str
   if (Math.abs(y2 - y1) < 0.5) return `M ${round(x1)} ${round(y1)} H ${round(x2)}`;
   const s = Math.max(MIN_PULL, Math.abs(x2 - x1) / 2);
   return `M ${round(x1)} ${round(y1)} C ${round(x1 + s)} ${round(y1)}, ${round(x2 - s)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
+}
+
+/**
+ * A line that lands partway into a turn meets the block's top or bottom edge
+ * at that moment, arriving upright, so its cap pins the edge instead of
+ * covering the title. It leaves the sender as upstream's curve does.
+ */
+export function edgeLandingPath(x1: number, y1: number, x2: number, yEdge: number): string {
+  const s = Math.max(MIN_PULL, Math.abs(x2 - x1) / 2);
+  const rise = Math.min(Math.abs(yEdge - y1) / 2, 24) * Math.sign(yEdge - y1);
+  return `M ${round(x1)} ${round(y1)} C ${round(x1 + s)} ${round(y1)}, ${round(x2)} ${round(yEdge - rise)}, ${round(x2)} ${round(yEdge)}`;
 }
 
 function round(n: number): number {

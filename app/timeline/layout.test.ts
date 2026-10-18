@@ -5,6 +5,7 @@ import {
   activityStrip,
   blocksInRange,
   handoffCurves,
+  edgeLandingPath,
   handoffPath,
   indexBlocks,
   layoutRows,
@@ -200,7 +201,7 @@ describe("hand-off curves", () => {
     const ended: LaneHandoff = { ...handoff("e", "c", "c2", "p", "p2", m(-12)), kind: "end" };
     const layout = layoutRows([lane("p"), lane("c")], "comfortable");
     const [curve] = handoffCurves([ended], indexBlocks([parent, child]), layout, m(-60), m(0));
-    expect(curve).toMatchObject({ from: { t: m(-12), row: 1 }, to: { t: m(-12), row: 0 }, live: true });
+    expect(curve).toMatchObject({ from: { t: m(-12), row: 1 }, to: { t: m(-12), row: 0, midTurn: true }, live: true });
   });
 
   it("skips curves inside one row and outside the range", () => {
@@ -226,6 +227,11 @@ describe("hand-off paths", () => {
 
   it("goes up as well as down", () => {
     expect(handoffPath(100, 120, 300, 24)).toBe("M 100 120 C 200 120, 200 24, 300 24");
+  });
+
+  it("meets a block's edge upright when it lands mid-turn", () => {
+    // From a lane below (y 72) onto the bottom edge (y 38) of a block centred at 24.
+    expect(edgeLandingPath(100, 72, 140, 38)).toBe("M 100 72 C 124 72, 140 55, 140 38");
   });
 
   it("is a straight line within one row", () => {

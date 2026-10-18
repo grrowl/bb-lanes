@@ -46,6 +46,7 @@ import {
   useRegistrar,
   useTouchPan,
 } from "./hooks";
+import { withReportTitles } from "./labels";
 import { LinkingStyle, cssString } from "./linking";
 import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
@@ -64,7 +65,7 @@ interface Focusable {
 }
 
 export function LanesTimeline(props: TimelineProps) {
-  const { rows, blocks, handoffs, now, viewport, density, highlightedThreadId, className } = props;
+  const { rows, handoffs, now, viewport, density, highlightedThreadId, className } = props;
   const rawId = useId();
   const uid = useMemo(() => `bl${rawId.replace(/[^a-zA-Z0-9]/g, "")}`, [rawId]);
 
@@ -73,6 +74,7 @@ export function LanesTimeline(props: TimelineProps) {
   const latest = useRef(props);
   latest.current = props;
   const describe = useCallback<Describe>((id) => latest.current.describeThread(id), []);
+  const blocks = useMemo(() => withReportTitles(props.blocks, handoffs, describe), [props.blocks, handoffs, describe]);
 
   // Below 520px the names column is avatars only and each lane gains a caption line.
   const [narrow, setNarrow] = useState(false);

@@ -479,6 +479,16 @@
 .bl-cap[data-at="start"] svg {
   left: 1px;
 }
+/* An arrow onto a block's edge points down or up, turning about its tip. */
+.bl-cap[data-dir] svg {
+  transform-origin: 5px 4px;
+}
+.bl-cap[data-dir="down"] svg {
+  transform: rotate(90deg);
+}
+.bl-cap[data-dir="up"] svg {
+  transform: rotate(-90deg);
+}
 /* Naming a hovered line, in the tooltip's look. */
 .bl-line-tip {
   position: absolute;
@@ -1098,6 +1108,19 @@
   align-items: center;
   height: 12px;
   cursor: pointer;
+}
+/* Calm until wanted, like an overlay scrollbar: it shows while the pointer is
+ * over the lanes, while scrubbing or panning, and whenever the window is not
+ * following the clock. */
+.bl-scrub {
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.bl-frame:hover .bl-scrub,
+.bl:not([data-live]) .bl-scrub,
+.bl[data-dragging] .bl-scrub,
+.bl-scrub[data-dragging] {
+  opacity: 1;
 }
 .bl-scrub[data-full] {
   display: none;

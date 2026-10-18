@@ -15,6 +15,7 @@ import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "../../shell/c
 import { WindowMenu } from "../../shell/components/Toolbar";
 import type { ProviderInfo } from "../../shell/data/useLanesData";
 import type { GroupMeta, LaneMeta } from "../../shell/grouping/types";
+import { namesColumnWidth } from "../../shell/preferences";
 import type { SurfaceActions, SurfaceState } from "../../shell/surface-store";
 import { makeThread } from "../../shell/testing/fixtures";
 import {
@@ -208,7 +209,10 @@ function DemoHarness() {
   const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(() => new Set());
   const [decisions, setDecisions] = useState(() => new Map<string, "approve" | "reject">());
   const [decidedAt, setDecidedAt] = useState(() => new Map<string, number>());
-  const [namesWidth, setNamesWidth] = useState(Number(params.get("names") ?? 0) || undefined);
+  // The names column the shell would give a pane this wide, until someone drags it.
+  const [namesWidth, setNamesWidth] = useState(
+    () => Number(params.get("names") ?? 0) || namesColumnWidth(Number(params.get("width") ?? 0) || window.innerWidth - 24, null),
+  );
 
   // The script loops like the reference demo; recompute only when a scripted step is crossed.
   const elapsed = ((now - base) / MINUTE) % (SCRIPT_MINUTES + 1);
