@@ -23,6 +23,7 @@ import { LiveSummary } from "./components/HeaderContent";
 import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "./components/RowHeader";
 import { Toolbar } from "./components/Toolbar";
 import { countLiveStates } from "./data/live-counts";
+import { useLaneNeighbors } from "./data/neighbors";
 import { teamThreadIds } from "./data/team-scope";
 import { useLanesData, useServerNow, type ProviderInfo } from "./data/useLanesData";
 import { laneState, searchTerms, summarizeActivity } from "./grouping/lane-state";
@@ -250,6 +251,13 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
     [data.handoffs, shownThreads],
   );
 
+  // Older turns for the lane jumpers, from the server, for lanes with none loaded.
+  const laneIds = useMemo(
+    () => organized.rows.filter((row) => row.kind === "lane").map((row) => row.id),
+    [organized.rows],
+  );
+  const neighbors = useLaneNeighbors({ laneIds, blocks, windowStart: viewEnd - state.span, span: state.span, now: rowsNow });
+
   const threadActions = experimental_useSidebarThreadActions();
   const laneActions = useMemo<LaneActions>(() => {
     const report = (verb: string) => (cause: unknown) =>
@@ -378,6 +386,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               describeThread,
               highlightedThreadId,
               namesWidth: namesColumnWidth(width, state.namesWidthOverride),
+              neighbors,
               onNamesWidthChange: actions.setNamesWidth,
               emptyState: (
                 <EmptyLanes

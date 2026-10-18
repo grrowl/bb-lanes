@@ -1407,6 +1407,208 @@
   }
 }
 
+/* ----- Lane jumpers ----- */
+/* The ‹ and › at a lane's edges zip to its previous or next turn. A disc in
+ * upstream's pill style, outside the moving layer and above the left fade;
+ * the button is the hit area (32px, 44px on touch), its face the 22px disc. */
+.bl-jumpers {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.bl-jumper {
+  --bl-jumper-pad: 5px;
+  position: absolute;
+  display: flex;
+  padding: var(--bl-jumper-pad);
+  border-radius: 999px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    translate 160ms ease,
+    visibility 0s linear 160ms;
+}
+.bl-jumper[data-side="prev"] {
+  left: calc(8px - var(--bl-jumper-pad));
+  translate: -2px -50%;
+}
+.bl-jumper[data-side="next"] {
+  right: calc(8px - var(--bl-jumper-pad));
+  translate: 2px -50%;
+}
+.bl-jumper[data-show] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  translate: 0 -50%;
+  transition-delay: 0s;
+}
+/* While the view moves, blocks slide under the edges: the jumpers step aside. */
+.bl[data-moving] .bl-jumper {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 120ms ease,
+    visibility 0s linear 120ms;
+}
+@media (pointer: coarse) {
+  .bl-jumper {
+    --bl-jumper-pad: 11px;
+  }
+}
+.bl .bl-jumper:focus-visible {
+  outline: none;
+}
+.bl-jumper:focus-visible .bl-jumper-face {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: 1px;
+}
+.bl-jumper-face {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  min-width: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 120ms ease;
+}
+.bl-jumper-face > svg {
+  width: 12px;
+  height: 12px;
+}
+.bl-jumper:hover .bl-jumper-face {
+  background: var(--bl-fill);
+  color: var(--bl-text);
+}
+.bl-jumper:active .bl-jumper-face {
+  transform: scale(0.96);
+}
+/* The distance opens out of the disc like upstream's state tag. */
+.bl-jumper-label {
+  display: inline-grid;
+  grid-template-columns: 0fr;
+  margin: 0;
+  opacity: 0;
+  transition:
+    grid-template-columns 320ms ease,
+    margin 320ms ease,
+    opacity 220ms ease;
+}
+.bl-jumper-label > span {
+  min-width: 0;
+  overflow: hidden;
+}
+.bl-jumper:is(:hover, :focus-visible) .bl-jumper-label {
+  grid-template-columns: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-columns 320ms ease,
+    margin 320ms ease,
+    opacity 260ms ease 80ms;
+}
+.bl-jumper[data-side="prev"]:is(:hover, :focus-visible) .bl-jumper-label {
+  margin: 0 2px 0 3px;
+}
+.bl-jumper[data-side="next"]:is(:hover, :focus-visible) .bl-jumper-label {
+  margin: 0 3px 0 2px;
+}
+/* What it zips to: the dark tooltip, with the turn's state as a dot. */
+.bl-jumper-tip {
+  position: absolute;
+  top: calc(100% - 2px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bl-tip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 15px;
+  color: var(--bl-tip-text);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bl-jumper[data-side="prev"] .bl-jumper-tip {
+  left: var(--bl-jumper-pad);
+}
+.bl-jumper[data-side="next"] .bl-jumper-tip {
+  right: var(--bl-jumper-pad);
+}
+.bl-jumper[data-up] .bl-jumper-tip {
+  top: auto;
+  bottom: calc(100% - 2px);
+}
+.bl-jumper:is(:hover, :focus-visible) .bl-jumper-tip {
+  opacity: 1;
+  transition-delay: 200ms;
+}
+.bl-jumper-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-jumper-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-tip-dot);
+}
+.bl-jumper-dot[data-status="running"] {
+  background: var(--bl-run-fg);
+}
+.bl-jumper-dot[data-status="waiting"] {
+  background: var(--bl-warn-fg);
+}
+.bl-jumper-dot[data-status="failed"] {
+  background: var(--bl-danger-fg);
+}
+
+/* Landed: the turn a zip arrived at takes the open block's tone, and a focus
+ * ring around it fades over 1.2s. */
+.bl-item[data-landed] {
+  animation: bl-landed-tone 1200ms ease-out;
+}
+.bl-slot:has(> .bl-item[data-landed]) {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: bl-landed-ring 1200ms ease-out;
+}
+@keyframes bl-landed-tone {
+  0%,
+  50% {
+    filter: brightness(0.97);
+  }
+}
+@keyframes bl-landed-ring {
+  0%,
+  35% {
+    outline-color: var(--bl-focus);
+  }
+}
+
 /* Narrow panes: lanes name themselves in a caption above their blocks, and
  * group rows run the whole width, since an open group's track is empty. */
 .bl-captions {
@@ -1482,5 +1684,12 @@
   .bl *::after {
     animation: none !important;
     transition: none !important;
+  }
+  /* Still: the landed turn holds its tone and ring until they clear. */
+  .bl-item[data-landed] {
+    filter: brightness(0.97);
+  }
+  .bl-slot:has(> .bl-item[data-landed]) {
+    outline-color: var(--bl-focus);
   }
 }

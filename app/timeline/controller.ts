@@ -36,6 +36,8 @@ export interface ControllerHost {
   requestFrame(): void;
   /** Report the view to the shell (already throttled). */
   commit(view: Viewport): void;
+  /** The view started or stopped moving under a gesture or a glide (lane jumpers hide meanwhile). */
+  moving?(moving: boolean): void;
 }
 
 type Motion =
@@ -49,6 +51,9 @@ type Motion =
       toEnd: number | "now";
       toSpan: number;
       live: boolean;
+      ease: (p: number) => number;
+      /** Called when the glide lands (not when a gesture interrupts it). */
+      done?: () => void;
     }
   | { kind: "spring"; start: number; from: number };
 
@@ -59,6 +64,10 @@ interface Drag {
 
 const MOMENTUM_TAU = 325;
 const TWEEN_MS = 280;
+/** A zip to a lane's previous or next turn travels further, so it takes a little longer. */
+const ZIP_MS = 420;
+/** Wheel and pinch gestures count as moving until this long after their last event. */
+const GESTURE_IDLE_MS = 150;
 const COMMIT_THROTTLE_MS = 180;
 /** Culling margin either side of the window, in spans. */
 const CULL_MARGIN = 0.6;
@@ -71,6 +80,11 @@ const STICKY_MIN_PX = 64;
 
 export function easeOutCubic(p: number): number {
   return 1 - (1 - p) ** 3;
+}
+
+/** A longer glide decelerates harder, so it reads as one confident move. */
+export function easeOutQuart(p: number): number {
+  return 1 - (1 - p) ** 4;
 }
 
 /** iOS-style rubber band: resistance grows with distance, never passing `limit`. */
@@ -119,6 +133,8 @@ export class ViewController {
   private lastNowShift = NaN;
   private stopped = true;
   private labelsQueued = false;
+  private gestureTimer = 0;
+  private reportedMoving = false;
 
   constructor(viewport: Viewport, now: number, host: ControllerHost) {
     this.host = host;
@@ -212,6 +228,7 @@ export class ViewController {
     const now = this.clock.read();
     const end = clamp(this.view.end + px * this.msPerPx(), now - MAX_HISTORY, now);
     this.view = { ...this.view, end, live: isAtNow(end, now, this.view.span, this.width) };
+    this.gesture();
     this.afterChange(false);
   }
 
@@ -227,6 +244,14 @@ export class ViewController {
     this.animateTo("now", this.view.span, true);
   }
 
+  /**
+   * Zip the window to a lane's turn, keeping the span: a decelerating glide
+   * that moves ruler, blocks and lines together, then `landed`.
+   */
+  zipTo(end: number | "now", live: boolean, landed: () => void): void {
+    this.animateTo(end, this.view.span, live, { duration: ZIP_MS, ease: easeOutQuart, done: landed });
+  }
+
   /** Zoom by `factor` (> 1 widens) around a point `fraction` across the track. Live zooms around now. */
   zoomBy(factor: number, fraction: number): void {
     this.zoomTo(this.view.span * factor, fraction);
@@ -234,6 +259,7 @@ export class ViewController {
 
   zoomTo(span: number, fraction: number): void {
     this.stopMotion();
+    this.gesture();
     const now = this.clock.read();
     if (this.view.live) {
       this.view = { end: now, span: clampSpan(span), live: true };
@@ -274,6 +300,7 @@ export class ViewController {
   dragStart(x: number, t: number): void {
     this.stopMotion();
     this.drag = { lastX: x, samples: [{ x, t }] };
+    this.reportMoving();
     if (this.view.live) {
       this.view = { ...this.view, live: false };
       this.afterChange(true);
@@ -308,10 +335,12 @@ export class ViewController {
     const drag = this.drag;
     this.drag = null;
     if (!drag) return;
+    this.reportMoving();
     const now = this.clock.read();
     if (this.overscroll > 0) {
       this.motion = { kind: "spring", start: performance.now(), from: this.overscroll };
       this.rawOverscroll = 0;
+      this.reportMoving();
       this.kick();
       return;
     }
@@ -322,6 +351,7 @@ export class ViewController {
     const velocity = recent ? -(last.x - first.x) / dt : 0;
     if (!this.reducedMotion && Math.abs(velocity) > 0.12) {
       this.motion = { kind: "momentum", velocity, last: performance.now() };
+      this.reportMoving();
       this.kick();
       return;
     }
@@ -364,9 +394,11 @@ export class ViewController {
     cancelAnimationFrame(this.raf);
     window.clearInterval(this.idleTimer);
     window.clearTimeout(this.commitTimer);
+    window.clearTimeout(this.gestureTimer);
     this.raf = 0;
     this.idleTimer = 0;
     this.commitTimer = 0;
+    this.gestureTimer = 0;
   }
 
   private tick = (ts: number): void => {
@@ -406,7 +438,7 @@ export class ViewController {
       return;
     }
     const p = Math.min(1, (ts - motion.start) / motion.duration);
-    const e = easeOutCubic(p);
+    const e = motion.ease(p);
     const toEnd = motion.toEnd === "now" ? now : motion.toEnd;
     const span = Math.exp(Math.log(motion.fromSpan) + (Math.log(motion.toSpan) - Math.log(motion.fromSpan)) * e);
     const end = Math.min(now, motion.fromEnd + (toEnd - motion.fromEnd) * e);
@@ -415,12 +447,14 @@ export class ViewController {
     if (p >= 1) {
       if (motion.live) this.view.end = now;
       this.finishMotion();
+      motion.done?.();
     }
   }
 
   private finishMotion(): void {
     this.motion = null;
     this.afterChange(true);
+    this.reportMoving();
   }
 
   private stopMotion(): void {
@@ -432,24 +466,33 @@ export class ViewController {
     this.motion = null;
   }
 
-  private animateTo(end: number | "now", span: number, live: boolean): void {
+  private animateTo(
+    end: number | "now",
+    span: number,
+    live: boolean,
+    glide: { duration: number; ease: (p: number) => number; done?: () => void } = { duration: TWEEN_MS, ease: easeOutCubic },
+  ): void {
     this.stopMotion();
     if (this.reducedMotion || this.width <= 0) {
       const now = this.clock.read();
       this.view = { end: end === "now" ? now : Math.min(now, end), span, live };
       this.afterChange(true);
+      glide.done?.();
       return;
     }
     this.motion = {
       kind: "tween",
       start: performance.now(),
-      duration: TWEEN_MS,
+      duration: glide.duration,
       fromEnd: this.view.end,
       fromSpan: this.view.span,
       toEnd: end,
       toSpan: span,
       live,
+      ease: glide.ease,
+      done: glide.done,
     };
+    this.reportMoving();
     // Leaving live is reported at once; arriving is reported when the glide lands.
     if (this.view.live && !live) {
       this.view = { ...this.view, live: false };
@@ -544,6 +587,7 @@ export class ViewController {
     const { length } = this.scrubRange(now);
     const end = clamp(this.view.end + fraction * length, now - MAX_HISTORY, now);
     this.view = { ...this.view, end, live: isAtNow(end, now, this.view.span, this.width) };
+    this.gesture();
     this.afterChange(false);
   }
 
@@ -577,6 +621,26 @@ export class ViewController {
         el.style.transform = x > 0 ? `translateX(${x}px)` : "";
       }
     }
+  }
+
+  // ----- Moving -----
+
+  /** A wheel, pinch or scrub event: moving until the events stop. */
+  private gesture(): void {
+    window.clearTimeout(this.gestureTimer);
+    this.gestureTimer = window.setTimeout(() => {
+      this.gestureTimer = 0;
+      this.reportMoving();
+    }, GESTURE_IDLE_MS);
+    this.reportMoving();
+  }
+
+  /** Tell the host when the view starts or stops moving; only changes are reported. */
+  private reportMoving(): void {
+    const moving = this.motion !== null || this.drag !== null || this.gestureTimer !== 0;
+    if (moving === this.reportedMoving) return;
+    this.reportedMoving = moving;
+    this.host.moving?.(moving);
   }
 
   // ----- Geometry helpers for the renderer -----

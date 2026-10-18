@@ -7,7 +7,7 @@
 // scroll container and can never drift apart; the shell supplies how a row's
 // header cell looks through `renderRowHeader`.
 import type { ReactNode } from "react";
-import type { LaneBlock, LaneHandoff } from "./model";
+import type { LaneBlock, LaneHandoff, LaneNeighbors } from "./model";
 
 export type RowDensity = "comfortable" | "compact";
 
@@ -96,6 +96,12 @@ export interface TimelineProps {
   onNamesWidthChange?(width: number): void;
   /** Replaces the built-in empty state shown when `rows` is empty. */
   emptyState?: ReactNode;
+  /**
+   * Optional: each lane's nearest turns outside the loaded history, by thread
+   * id (`lanes_neighbors`). The lane jumpers prefer loaded blocks and fall
+   * back to these, so a lane can zip to a turn the shell has not loaded yet.
+   */
+  neighbors?: Readonly<Record<string, LaneNeighbors>>;
 }
 
 // Hand-off lines join two lanes at the moment one thread started, messaged,

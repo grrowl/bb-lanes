@@ -46,12 +46,20 @@ import {
   useRegistrar,
   useTouchPan,
 } from "./hooks";
+import { NO_JUMPS, laneJumps, zipLanding, type LaneJumps } from "./jumps";
+import { LaneJumpers, jumperNavId, splitJumperId, type JumpSide } from "./Jumpers";
 import { withReportTitles } from "./labels";
 import { LinkingStyle, cssString } from "./linking";
 import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
 
 const OVERSCAN_ROWS = 6;
+/** Below this track width a jumper and its label would crowd the blocks they point past. */
+const JUMPERS_MIN_TRACK_PX = 160;
+/** How long the landed block's ring takes to fade. */
+const LANDED_MS = 1200;
+/** A zip to a turn that is still loading waits this long for it to arrive. */
+const LANDING_WAIT_MS = 8000;
 const STRIP_BIN_PX = 3;
 
 type Describe = TimelineProps["describeThread"];
@@ -89,6 +97,8 @@ export function LanesTimeline(props: TimelineProps) {
   // ----- View controller and frames -----
 
   const [frame, setFrame] = useState<Frame | null>(null);
+  // True while a gesture or a glide moves the view; lane jumpers wait for it to settle.
+  const [moving, setMoving] = useState(false);
   const controllerRef = useRef<ViewController | null>(null);
   if (controllerRef.current === null) {
     controllerRef.current = new ViewController(viewport, now, {
@@ -96,6 +106,7 @@ export function LanesTimeline(props: TimelineProps) {
       // the current one keeps sliding by transform within its margin.
       requestFrame: () => startTransition(() => setFrame(controllerRef.current!.cutFrame())),
       commit: (next) => latest.current.onViewportChange(next),
+      moving: setMoving,
     });
   }
   const controller = controllerRef.current;
@@ -320,6 +331,44 @@ export function LanesTimeline(props: TimelineProps) {
     return () => window.clearTimeout(timer);
   }, [rowPlacement, narrow]);
 
+  // ----- Lane jumpers -----
+
+  /** The ‹ and › a lane shows for the window as it is now. */
+  const jumpsOf = useCallback(
+    (threadId: string): LaneJumps => {
+      if (controller.width < JUMPERS_MIN_TRACK_PX) return NO_JUMPS;
+      const win = controller.window();
+      const window = { from: win.from, to: win.to, live: controller.view.live };
+      return laneJumps(index.byThread.get(threadId), latest.current.neighbors?.[threadId], window);
+    },
+    [controller, index],
+  );
+
+  /**
+   * ← and → zip, like the jumpers, when the next target lies wholly outside
+   * the window on that side, or when only the server knows the lane's next
+   * turn that way. A target that still shows in part is just focused.
+   */
+  const zipTargetOf = useCallback(
+    (target: nav.NavPosition | null, side: JumpSide, threadId: string): LaneBlock | null => {
+      const win = controller.window();
+      if (target?.item.id.startsWith("j:")) {
+        const jumps = jumpsOf(threadId);
+        return side === "prev" ? jumps.prev : jumps.next;
+      }
+      if (target) {
+        const outside = side === "prev" ? target.item.end <= win.from : target.item.start >= win.to;
+        if (!outside) return null;
+        const ids = target.item.blockIds;
+        return index.byId.get(side === "prev" ? ids[ids.length - 1]! : ids[0]!) ?? null;
+      }
+      const known = latest.current.neighbors?.[threadId];
+      if (side === "prev") return known?.prev && known.prev.end !== null && known.prev.end <= win.from ? known.prev : null;
+      return !controller.view.live && known?.next && known.next.start >= win.to ? known.next : null;
+    },
+    [controller, index, jumpsOf],
+  );
+
   // ----- Navigation model -----
 
   const navModel = useCallback((): nav.NavModel => {
@@ -338,6 +387,11 @@ export function LanesTimeline(props: TimelineProps) {
         if (row?.kind === "lane") {
           const series = index.byThread.get(row.id);
           items = trackItems(series?.blocks ?? [], controller.view.span, controller.width || 960, openEnd).map(toNavItem);
+          // The jumpers sit at the window's edges, in time order with the blocks.
+          const jumps = jumpsOf(row.id);
+          if (jumps.prev) items.push({ id: jumperNavId("prev", row.id), start: win.from, end: win.from + 1, blockIds: [] });
+          if (jumps.next) items.push({ id: jumperNavId("next", row.id), start: win.to - 1, end: win.to, blockIds: [] });
+          if (jumps !== NO_JUMPS) items.sort((a, b) => a.start - b.start);
         } else if (row?.kind === "group" && row.collapsed) {
           items = [{ id: `g:${row.id}`, start: win.from, end: win.to, blockIds: [] }];
         }
@@ -345,7 +399,7 @@ export function LanesTimeline(props: TimelineProps) {
         return items;
       },
     };
-  }, [controller, layout, index]);
+  }, [controller, layout, index, jumpsOf]);
 
   // Keep the roving tab stop on something drawn, so Tab always lands in view.
   useLayoutEffect(() => {
@@ -518,10 +572,60 @@ export function LanesTimeline(props: TimelineProps) {
     [closePopover],
   );
 
+  // ----- Zips -----
+
+  // The turn a zip is heading for. When the glide lands, the turn flashes and
+  // takes focus; a turn the shell is still loading does so once it arrives.
+  const landing = useRef<{ blockId: string; landed: boolean; at: number } | null>(null);
+  const [landingSeq, setLandingSeq] = useState(0);
+
+  const zip = useCallback(
+    (block: LaneBlock, side: JumpSide) => {
+      const { end, live } = zipLanding(block, side, controller.view.span, controller.clock.read());
+      openPopover(null);
+      const target = { blockId: block.id, landed: false, at: performance.now() };
+      landing.current = target;
+      controller.zipTo(live ? "now" : end, live, () => {
+        if (landing.current !== target) return;
+        target.landed = true;
+        setLandingSeq((n) => n + 1);
+      });
+    },
+    [controller, openPopover],
+  );
+
+  // Land: flash the turn and give it focus, as soon as it is drawn.
+  useLayoutEffect(() => {
+    const target = landing.current;
+    const root = rootRef.current;
+    if (!target?.landed || !root) return;
+    if (performance.now() - target.at > LANDING_WAIT_MS) {
+      landing.current = null;
+      return;
+    }
+    const id = cssString(target.blockId);
+    const el = root.querySelector<HTMLElement>(`[data-block="${id}"], [data-members~="${id}"]`);
+    if (!el) return;
+    landing.current = null;
+    const row = el.closest<HTMLElement>("[data-thread]");
+    selection.set({ rovingId: el.dataset.nav ?? null, rovingRow: row?.dataset.thread ?? null });
+    if (row?.dataset.thread) scrollRowIntoView(rowIndexById(layout, row.dataset.thread));
+    el.focus({ preventScroll: true });
+    el.setAttribute("data-landed", "");
+    window.setTimeout(() => el.removeAttribute("data-landed"), LANDED_MS);
+  }, [landingSeq, index, renderedRows, activeFrame, layout, selection, scrollRowIntoView]);
+
   // ----- Activation -----
 
   const activateNav = useCallback(
     (navId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; detail?: number }) => {
+      if (navId.startsWith("j:")) {
+        const [side, rowId] = splitJumperId(navId);
+        const jumps = jumpsOf(rowId);
+        const block = side === "prev" ? jumps.prev : jumps.next;
+        if (block) zip(block, side);
+        return;
+      }
       if (navId.startsWith("g:")) {
         const row = layout.rows.find((r) => r.kind === "group" && r.id === navId.slice(2));
         if (row) latest.current.onToggleRow(row);
@@ -548,7 +652,7 @@ export function LanesTimeline(props: TimelineProps) {
       }
       openPopover(selection.get().openBlockId === block.id ? null : block.id);
     },
-    [layout, index, controller, itemsForRow, openThread, openPopover, selection],
+    [layout, index, controller, itemsForRow, openThread, openPopover, selection, jumpsOf, zip],
   );
 
   // ----- Pointer: hover, drag to pan, clicks -----
@@ -733,9 +837,16 @@ export function LanesTimeline(props: TimelineProps) {
       const handled = (() => {
         switch (event.key) {
           case "ArrowLeft":
-          case "ArrowRight":
-            if (current) moveFocus(nav.horizontal(model, current, event.key === "ArrowLeft" ? -1 : 1));
+          case "ArrowRight": {
+            if (!current) return true;
+            const side: JumpSide = event.key === "ArrowLeft" ? "prev" : "next";
+            const target = nav.horizontal(model, current, side === "prev" ? -1 : 1);
+            const row = layout.rows[current.row];
+            const far = row?.kind === "lane" ? zipTargetOf(target, side, row.id) : null;
+            if (far) zip(far, side);
+            else moveFocus(target);
             return true;
+          }
           case "ArrowUp":
           case "ArrowDown":
             if (current) moveFocus(nav.vertical(model, current, event.key === "ArrowUp" ? -1 : 1));
@@ -828,6 +939,7 @@ export function LanesTimeline(props: TimelineProps) {
     "data-reflow": reflowing ? "" : undefined,
     "data-narrow": narrow ? "" : undefined,
     "data-scrolled": scroll.top > 0 ? "" : undefined,
+    "data-moving": moving ? "" : undefined,
     style: rootStyle,
     role: "region",
     "aria-label": "Agent lanes",
@@ -849,13 +961,14 @@ export function LanesTimeline(props: TimelineProps) {
     );
   }
 
+  const view = controller.window();
+  const viewTop = Math.max(0, scroll.top - rulerHeight);
+  const viewHeight = scroll.height - rulerHeight;
   const openRowIndex = openBlock ? rowIndexById(layout, openBlock.threadId) : -1;
   // Upstream opens above a lane in the bottom half (row ≥ rows / 2); with rows
   // that scroll, the lane's middle against the middle of the view says the same.
   const openUp =
-    openRowIndex >= 0 &&
-    layout.tops[openRowIndex]! + layout.heights[openRowIndex]! / 2 - Math.max(0, scroll.top - rulerHeight) >
-      (scroll.height - rulerHeight) / 2;
+    openRowIndex >= 0 && layout.tops[openRowIndex]! + layout.heights[openRowIndex]! / 2 - viewTop > viewHeight / 2;
 
   return (
     <div {...rootProps}>
@@ -976,6 +1089,27 @@ export function LanesTimeline(props: TimelineProps) {
                 </div>
               </div>
               {narrow && <LaneCaptions layout={layout} renderedRows={renderedRows} describe={describe} />}
+              <div className="bl-jumpers">
+                {renderedRows.map((i) => {
+                  const row = layout.rows[i]!;
+                  if (row.kind !== "lane") return null;
+                  const mid = layout.mids[i]!;
+                  return (
+                    <LaneJumpers
+                      key={rowKey(row)}
+                      rowId={row.id}
+                      mid={mid}
+                      jumps={jumpsOf(row.id)}
+                      windowEnd={view.to}
+                      now={activeFrame.now}
+                      selection={selection}
+                      up={mid - viewTop > viewHeight / 2}
+                      describe={describe}
+                      onZip={zip}
+                    />
+                  );
+                })}
+              </div>
               <div className="bl-nowclip" aria-hidden="true">
                 <div ref={registerNow} className="bl-now">
                   <span className="bl-now-line" />
