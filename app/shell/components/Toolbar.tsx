@@ -219,9 +219,10 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
         <SearchField value={state.query} onChange={actions.setQuery} inputRef={searchRef} className="flex-1" />
         <StatusNote status={status} />
         {trailing}
-        <DropdownMenu>
+        {/* The View menu holds Group by here, so the `g` key opens it. */}
+        <DropdownMenu open={state.groupMenuOpen} onOpenChange={actions.setGroupMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[12px]" aria-label="View options">
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[12px]" aria-label="View options" aria-keyshortcuts="g">
               <Icon name="SlidersHorizontal" className="size-3.5" aria-hidden />
               {state.filter === "active" ? null : (
                 <span className="lanes-dot lanes-tone-run" aria-hidden="true" />

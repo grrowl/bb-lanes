@@ -185,7 +185,7 @@ export function LaneHeaderCell({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className={cn("lanes-cell gap-2.5 pr-3", meta?.matched === false && "opacity-70")}
+          className="lanes-cell gap-2.5 pr-3"
           style={{ paddingLeft: inset + row.depth * step }}
           data-highlighted={highlighted ? "" : undefined}
         >
