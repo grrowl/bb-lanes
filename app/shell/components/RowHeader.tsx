@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { GroupRow, LaneRow, RowDensity } from "../../../shared/view";
 import type { ProviderInfo } from "../data/useLanesData";
 import type { GroupMeta, LaneMeta, LaneState } from "../grouping/types";
+import { WaitingGlyph } from "./glyphs";
 import { ProviderAvatar } from "./ProviderAvatar";
 
 const STATE_LABEL: Record<LaneState, string | null> = {
@@ -73,14 +74,6 @@ export function Highlighted({ text, terms }: { text: string; terms: readonly str
     }
   }
   return <>{parts}</>;
-}
-
-function WaitingGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 12 12" width="9" height="9" className={className} aria-hidden="true">
-      <path d="M6 1.8 10.8 10H1.2L6 1.8Z" fill="currentColor" />
-    </svg>
-  );
 }
 
 export function GroupCounts({ counts }: { counts: GroupRow["counts"] }) {

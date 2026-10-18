@@ -9,7 +9,7 @@ import { DEFAULT_SPAN, MAX_SPAN, MIN_SPAN } from "./time";
 
 export const NAMES_WIDTH_DEFAULT = 168;
 export const NAMES_WIDTH_MIN = 120;
-export const NAMES_WIDTH_MAX = 420;
+export const NAMES_WIDTH_MAX = 360;
 
 const idList = z.array(z.string().min(1).max(512)).max(2_000);
 

@@ -10,16 +10,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { WaitingGlyph } from "./glyphs";
 import { Hint } from "./Hint";
 import { useLiveCounts } from "../data/live-counts";
 import { useSurface } from "../surface-store";
 import { formatDuration, presetForSpan, SPAN_PRESETS } from "../time";
 
-export function SpanControl({ span, onChange }: { span: number; onChange(span: number): void }) {
+/** `menu` always uses the compact dropdown (narrow surfaces such as a side panel). */
+export function SpanControl({
+  span,
+  onChange,
+  menu = false,
+}: {
+  span: number;
+  onChange(span: number): void;
+  menu?: boolean;
+}) {
   const current = presetForSpan(span);
   return (
     <>
-      <div role="radiogroup" aria-label="Window" className="hidden items-center gap-0.5 rounded-lg bg-surface-recessed p-0.5 sm:flex">
+      <div
+        role="radiogroup"
+        aria-label="Window"
+        className={cn("items-center gap-0.5 rounded-lg bg-surface-recessed p-0.5", menu ? "hidden" : "hidden sm:flex")}
+      >
         {SPAN_PRESETS.map((preset) => {
           const selected = current?.ms === preset.ms;
           return (
@@ -46,7 +60,12 @@ export function SpanControl({ span, onChange }: { span: number; onChange(span: n
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-[12px] tabular-nums sm:hidden" aria-label="Window">
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("h-7 gap-1 px-2 text-[12px] tabular-nums", !menu && "sm:hidden")}
+            aria-label="Window"
+          >
             {current?.label ?? formatDuration(span)}
             <Icon name="ChevronDown" className="size-3 text-muted-foreground" aria-hidden />
           </Button>
@@ -109,7 +128,7 @@ export function LanesHeaderContent() {
             className="lanes-tone-warn lanes-toned lanes-rise inline-flex items-center gap-1.5 rounded font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring"
             title="Show lanes that need you"
           >
-            <span className="lanes-dot" aria-hidden="true" />
+            <WaitingGlyph className="lanes-pulse" />
             {counts.waiting} need{counts.waiting === 1 ? "s" : ""} you
           </button>
         ) : null}

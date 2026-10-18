@@ -345,6 +345,7 @@ export function organizeLanes(input: OrganizeInput): Organized {
         isLastChild,
         state: lane.state,
       };
+      if (collapsed) row.collapsedThreadIds = descendantsOf(id, tree.children);
       rows.push(row);
       laneMeta.set(id, { guides, matched: lane.matched });
       if (collapsed) return;
@@ -438,6 +439,17 @@ function buildGroupTree(group: GroupBucket, lanes: ReadonlyMap<string, Lane>): G
     recency = Math.max(recency, measured.recency);
   }
   return { included, roots, children, rank, recency };
+}
+
+function descendantsOf(id: string, children: ReadonlyMap<string, readonly string[]>): string[] {
+  const result: string[] = [];
+  const stack = [...(children.get(id) ?? [])];
+  while (stack.length > 0) {
+    const next = stack.pop()!;
+    result.push(next);
+    stack.push(...(children.get(next) ?? []));
+  }
+  return result;
 }
 
 function basename(path: string | null): string | null {

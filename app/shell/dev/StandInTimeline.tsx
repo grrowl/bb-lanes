@@ -15,7 +15,7 @@ const TONE: Record<LaneBlock["status"], string> = {
 };
 
 export function StandInTimeline(props: TimelineProps) {
-  const { rows, blocks, now, viewport, density, renderRowHeader, onOpenThread, onToggleRow } = props;
+  const { rows, blocks, now, viewport, density, renderRowHeader, onOpenThread, onToggleRow, namesWidth = 168 } = props;
   const [hovered, setHovered] = useState<string | null>(null);
   const height = density === "compact" ? 36 : 48;
   const start = viewport.end - viewport.span;
@@ -33,13 +33,14 @@ export function StandInTimeline(props: TimelineProps) {
         ? row.threadIds.flatMap((id) => byThread.get(id) ?? [])
         : [];
 
+  if (rows.length === 0) return <>{props.emptyState}</>;
   return (
     <div className={`${props.className ?? ""} min-h-0 overflow-auto`} data-testid="stand-in-timeline">
       {rows.map((row) => (
         <div
           key={`${row.kind}:${row.id}`}
           className="grid border-b border-border/50"
-          style={{ gridTemplateColumns: "220px minmax(0, 1fr)", height }}
+          style={{ gridTemplateColumns: `${namesWidth}px minmax(0, 1fr)`, height }}
           onPointerEnter={() => setHovered(row.id)}
           onPointerLeave={() => setHovered(null)}
         >

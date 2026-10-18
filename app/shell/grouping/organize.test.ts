@@ -280,7 +280,7 @@ describe("organizeLanes: collapse, counts, and tree guides", () => {
     const result = organizeLanes(input({ threads, collapsedLanes: new Set(["w1"]) }));
     expect(outline(result.rows)).toEqual(["# alpha", "lead", "  w1 [running]", "  w2 [failed]", "# bravo", "other"]);
     const w1 = result.rows.find((row) => row.id === "w1") as LaneRow;
-    expect(w1).toMatchObject({ hasChildren: true, collapsed: true });
+    expect(w1).toMatchObject({ hasChildren: true, collapsed: true, collapsedThreadIds: ["w1a"] });
   });
 
   it("search reveals matches inside collapsed groups and lanes", () => {

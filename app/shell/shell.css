@@ -21,7 +21,7 @@
 .lanes-tone-warn { --tone: var(--lanes-warn); --tone-wash: var(--lanes-warn-wash); }
 .lanes-tone-danger { --tone: var(--lanes-danger); --tone-wash: var(--lanes-danger-wash); }
 .lanes-dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--tone, var(--muted-foreground)); }
-.lanes-tone-warn .lanes-dot, .lanes-dot.lanes-tone-warn { animation: lanes-pulse 1600ms ease-in-out infinite; }
+.lanes-tone-warn .lanes-dot, .lanes-dot.lanes-tone-warn, .lanes-pulse { animation: lanes-pulse 1600ms ease-in-out infinite; }
 .lanes-toned { color: var(--tone); }
 
 /* ----- Avatars: a provider logo on a small tile, or initials ----- */

@@ -331,7 +331,6 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
   });
 
   const loading = data.sidebar.status === "loading" || (data.status === "loading" && threads.length === 0);
-  const empty = !loading && organized.rows.length === 0;
 
   return (
     <div
@@ -351,7 +350,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
           trailing={
             surface === "team-lanes" ? (
               <>
-                <SpanControl span={state.span} onChange={actions.setSpan} />
+                <SpanControl span={state.span} onChange={actions.setSpan} menu={condensed} />
                 <LiveControl live={state.live} onGoLive={actions.goLive} />
               </>
             ) : undefined
@@ -359,16 +358,6 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
         />
         {loading ? (
           <LoadingLanes />
-        ) : empty ? (
-          <EmptyLanes
-            span={state.span}
-            filter={state.filter}
-            query={state.query}
-            hasThreads={threads.length > 0}
-            onWiden={actions.setSpan}
-            onShowAll={() => actions.setFilter("all")}
-            onClearSearch={() => actions.setQuery("")}
-          />
         ) : (
           <TimelineHost
             Timeline={Timeline}
@@ -389,6 +378,19 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               loadDetail: data.loadDetail,
               describeThread,
               highlightedThreadId,
+              namesWidth: state.namesWidth,
+              onNamesWidthChange: actions.setNamesWidth,
+              emptyState: (
+                <EmptyLanes
+                  span={state.span}
+                  filter={state.filter}
+                  query={state.query}
+                  hasThreads={threads.length > 0}
+                  onWiden={actions.setSpan}
+                  onShowAll={() => actions.setFilter("all")}
+                  onClearSearch={() => actions.setQuery("")}
+                />
+              ),
               className: "min-h-0 flex-1",
             }}
           />
