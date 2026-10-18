@@ -172,6 +172,16 @@ const BlockSlot = memo(
             <span className="bl-label">{blockTitle(block, describe)}</span>
           </span>
         </button>
+        {block.status === "waiting" && (
+          <span className="bl-flag" aria-hidden="true">
+            <span className="bl-flag-mark">
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M6 1.8 10.8 10H1.2L6 1.8Z" fill="currentColor" />
+              </svg>
+              Needs you
+            </span>
+          </span>
+        )}
       </li>
     );
   },
@@ -258,8 +268,8 @@ export interface GroupStripProps {
 }
 
 /**
- * A collapsed group still shows the shape of its work: a centred waveform of
- * how many lanes were busy, tinted by the most urgent state in each moment.
+ * A collapsed group still shows the shape of its work: a centred silhouette
+ * of how many lanes were busy, tinted by the most urgent state in each moment.
  * The whole strip is the disclosure button.
  */
 export const GroupStrip = memo(function GroupStrip({ row, top, height, strip, anchor, span, selection }: GroupStripProps) {
@@ -276,10 +286,11 @@ export const GroupStrip = memo(function GroupStrip({ row, top, height, strip, an
   for (let i = 0; i < n; i += 1) {
     const count = strip.counts[i]!;
     if (count === 0) continue;
-    // sqrt keeps one busy lane readable next to many.
-    const h = 0.22 + 0.78 * Math.sqrt(Math.min(1, count / Math.min(total, 6)));
+    // A mirrored silhouette of how many lanes were busy; sqrt keeps one busy
+    // lane readable next to many.
+    const h = 0.28 + 0.72 * Math.sqrt(Math.min(1, count / Math.min(total, 6)));
     const y = (1 - h) / 2;
-    paths[strip.states[i]! - 1]!.push(`M${i + 0.18} ${y.toFixed(3)}h0.64v${h.toFixed(3)}h-0.64z`);
+    paths[strip.states[i]! - 1]!.push(`M${i} ${y.toFixed(3)}h1.02v${h.toFixed(3)}h-1.02z`);
   }
   const { running, waiting, failed, total: lanes } = row.counts;
   const parts = [plural(lanes, "lane")];

@@ -154,9 +154,18 @@ export class ViewController {
     this.kick();
   }
 
-  /** Clock time ahead of the frame that open blocks are drawn to, so they always reach now. */
-  openLookahead(): number {
-    return 2500 * this.clock.rate;
+  /**
+   * How often (real ms) to re-cut the frame while blocks are open. Open blocks
+   * end at the frame's clock time, like the reference's 250ms re-render; this
+   * keeps the gap between their end and the sliding now line under half a
+   * pixel, and slows right down when now is off screen.
+   */
+  openCadence(): number {
+    if (this.reducedMotion || this.width <= 0) return 1000;
+    const now = this.clock.read();
+    if (!this.view.live && now - this.view.end > this.view.span * 0.05) return 1000;
+    const msPerHalfPx = (0.5 * this.view.span) / this.width / Math.max(0.001, this.clock.rate);
+    return clamp(msPerHalfPx, 50, 1000);
   }
 
   setWidth(width: number): void {

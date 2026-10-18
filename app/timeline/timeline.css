@@ -1,67 +1,106 @@
 /*
- * bb Lanes timeline. Grown from affectUI's Agent Lanes stylesheet (ui-al →
- * bl), with every colour derived from bb's host tokens so light, dark and
- * custom palettes all work. Override any --bl-* variable on .bl.
+ * bb Lanes timeline: affectUI's Agent Lanes, grown into a full pane.
+ *
+ * Fidelity first. Every upstream rule is carried over with its values; the
+ * mapping is mechanical: `.ui-al` → `.bl`, `.ui-al__x` → `.bl-x`, and
+ * `--ui-al-x` → `--bl-x`. What upstream does not have (group rows, the
+ * collapsed-group strip, clusters, panning, the jump pill, the resize handle,
+ * sticky titles) is drawn with the same tokens, radii and motion.
+ *
+ * `.bl-theme` carries the palette alone, so the shell's tray and card can
+ * share it. Dark mode follows `.dark` or `data-theme="dark"` on an ancestor.
  */
 
+/* Colors and motion as variables – override them on .bl */
+.bl,
+.bl-theme {
+  --bl-tray: #f0f0f0;
+  --bl-card: #ffffff;
+  --bl-strong: #171717;
+  --bl-ink: #171717;
+  --bl-text: #6b6b6b;
+  --bl-muted: #8a8a8a;
+  --bl-faint: #b8b8b8;
+  --bl-line: #ececec;
+  --bl-rail: #c4c4c8;
+  --bl-wash: #f6f6f6;
+  --bl-fill: #ececec;
+  --bl-done: #f2f2f3;
+  --bl-solid: #171717;
+  --bl-on-solid: #ffffff;
+  --bl-solid-hover: #33333a;
+  --bl-run-bg: rgba(47, 107, 255, 0.1);
+  --bl-run-fg: #2f6bff;
+  --bl-run-edge: rgba(47, 107, 255, 0.55);
+  --bl-warn-bg: #fff3e0;
+  --bl-warn-fg: #b85c00;
+  --bl-danger-bg: #fdecea;
+  --bl-danger-fg: #c2331f;
+  --bl-focus: rgba(23, 23, 23, 0.22);
+  --bl-shadow: 0 0 0 1px #ececec, 0 1px 2px rgba(0, 0, 0, 0.04);
+  --bl-pop: 0 0 0 1px #ececec, 0 16px 36px -12px rgba(0, 0, 0, 0.22);
+  --bl-shimmer: rgba(255, 255, 255, 0.55);
+  /* The dark tooltip, and the small dark chips that share its look. */
+  --bl-tip-bg: rgba(23, 23, 23, 0.92);
+  --bl-tip-text: rgba(255, 255, 255, 0.86);
+  --bl-tip-muted: rgba(255, 255, 255, 0.55);
+  --bl-tip-strong: #ffffff;
+  --bl-tip-rule: rgba(255, 255, 255, 0.35);
+  --bl-tip-dot: rgba(255, 255, 255, 0.5);
+  --bl-tip-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.35);
+  /* Extensions, derived from the palette above. */
+  --bl-band: color-mix(in srgb, var(--bl-wash) 70%, transparent);
+  --bl-hover-band: var(--bl-wash);
+  --bl-link-band: color-mix(in srgb, var(--bl-run-bg) 55%, transparent);
+  --bl-highlight-band: color-mix(in srgb, var(--bl-run-bg) 45%, transparent);
+  --bl-hatch: color-mix(in srgb, var(--bl-text) 26%, transparent);
+  --bl-bar-failed: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
+  --bl-dim: 0.35;
+}
+
+/* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html> */
+:where(.dark, [data-theme="dark"]) :is(.bl, .bl-theme) {
+  --bl-tray: #111113;
+  --bl-card: #19191b;
+  --bl-strong: #ffffff;
+  --bl-ink: rgba(255, 255, 255, 0.9);
+  --bl-text: rgba(255, 255, 255, 0.62);
+  --bl-muted: rgba(255, 255, 255, 0.45);
+  --bl-faint: rgba(255, 255, 255, 0.28);
+  --bl-line: rgba(255, 255, 255, 0.08);
+  --bl-rail: rgba(255, 255, 255, 0.2);
+  --bl-wash: rgba(255, 255, 255, 0.04);
+  --bl-fill: rgba(255, 255, 255, 0.08);
+  --bl-done: rgba(255, 255, 255, 0.06);
+  --bl-solid: rgba(255, 255, 255, 0.92);
+  --bl-on-solid: #141416;
+  --bl-solid-hover: #d6d6da;
+  --bl-run-bg: #0077ff3a;
+  --bl-run-fg: #70b8ff;
+  --bl-run-edge: rgba(112, 184, 255, 0.6);
+  --bl-warn-bg: #fb6a0025;
+  --bl-warn-fg: #ffa057;
+  --bl-danger-bg: #ff35232b;
+  --bl-danger-fg: #ff977d;
+  --bl-focus: rgba(91, 154, 255, 0.45);
+  --bl-shadow: 0 0 0 1px #2a2a2e, 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bl-pop: 0 0 0 1px #2a2a2e, 0 16px 36px -12px rgba(0, 0, 0, 0.6);
+  --bl-shimmer: rgba(255, 255, 255, 0.12);
+  /* Dark mode: the tooltip turns light, so it stands out from the dark card */
+  --bl-tip-bg: rgba(250, 250, 250, 0.94);
+  --bl-tip-text: rgba(0, 0, 0, 0.82);
+  --bl-tip-muted: rgba(0, 0, 0, 0.5);
+  --bl-tip-strong: #000000;
+  --bl-tip-rule: rgba(0, 0, 0, 0.3);
+  --bl-tip-dot: rgba(0, 0, 0, 0.4);
+  --bl-tip-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --bl-dim: 0.4;
+}
+
 .bl {
-  --bl-surface: var(--card);
-  --bl-ink: var(--foreground);
-  --bl-text: var(--muted-foreground);
-  --bl-muted: var(--subtle-foreground, var(--muted-foreground));
-  --bl-faint: color-mix(in oklab, var(--foreground) 38%, var(--bl-surface));
-  --bl-line: color-mix(in oklab, var(--foreground) 7%, var(--bl-surface));
-  --bl-line-strong: var(--border);
-  --bl-rail: color-mix(in oklab, var(--foreground) 44%, var(--bl-surface));
-  --bl-fill: color-mix(in oklab, var(--foreground) 10.5%, var(--bl-surface));
-  --bl-done: color-mix(in oklab, var(--foreground) 6%, var(--bl-surface));
-  --bl-done-fg: color-mix(in oklab, var(--muted-foreground) 92%, var(--bl-surface));
-  --bl-bar: color-mix(in oklab, var(--foreground) 17%, var(--bl-surface));
-  --bl-bar-failed: color-mix(in oklab, var(--destructive) 55%, var(--bl-surface));
-  --bl-bar-interrupted: color-mix(in oklab, var(--foreground) 30%, var(--bl-surface));
-
-  /* Running work uses bb's one timeline tint; blocks are opaque so curves pass beneath them. */
-  --bl-run: var(--timeline-accent);
-  --bl-run-bg: color-mix(in oklab, var(--bl-run) 15%, var(--bl-surface));
-  --bl-run-bg-hover: color-mix(in oklab, var(--bl-run) 21%, var(--bl-surface));
-  --bl-run-fg: color-mix(in oklab, var(--bl-run) 88%, var(--foreground));
-  --bl-run-edge: color-mix(in oklab, var(--bl-run) 78%, var(--bl-surface));
-  --bl-run-wash: color-mix(in oklab, var(--bl-run) 10%, transparent);
-  --bl-warn: var(--warning);
-  --bl-warn-bg: color-mix(in oklab, var(--warning) 17%, var(--bl-surface));
-  --bl-warn-bg-hover: color-mix(in oklab, var(--warning) 24%, var(--bl-surface));
-  --bl-warn-fg: var(--warning-text);
-  --bl-danger: var(--destructive);
-  --bl-danger-bg: color-mix(in oklab, var(--destructive) 11%, var(--bl-surface));
-  --bl-danger-bg-hover: color-mix(in oklab, var(--destructive) 16%, var(--bl-surface));
-  --bl-danger-fg: var(--destructive-text, var(--destructive));
-  --bl-shimmer: color-mix(in oklab, var(--bl-surface) 62%, transparent);
-  --bl-hatch: color-mix(in oklab, var(--foreground) 20%, transparent);
-
-  --bl-focus: color-mix(in oklab, var(--ring) 60%, transparent);
-  --bl-link: color-mix(in oklab, var(--foreground) 62%, var(--bl-surface));
-  --bl-hover-band: color-mix(in oklab, var(--foreground) 2.6%, transparent);
-  --bl-link-band: color-mix(in oklab, var(--bl-run) 7%, transparent);
-  --bl-highlight-band: color-mix(in oklab, var(--bl-run) 5.5%, transparent);
-  --bl-group-band: color-mix(in oklab, var(--foreground) 2.4%, transparent);
-  --bl-dim: 0.3;
-
-  --bl-tip-bg: color-mix(in oklab, var(--foreground) 95%, transparent);
-  --bl-tip-text: color-mix(in oklab, var(--bl-surface) 88%, transparent);
-  --bl-tip-strong: var(--bl-surface);
-  --bl-tip-muted: color-mix(in oklab, var(--bl-surface) 56%, transparent);
-  --bl-tip-line: color-mix(in oklab, var(--bl-surface) 14%, transparent);
-
-  --bl-shadow-color: var(--shadow-color, hsl(0 0% 20% / 0.1));
-  --bl-shadow: 0 0 0 1px var(--bl-line-strong), 0 1px 2px var(--bl-shadow-color);
-  --bl-pop-shadow: 0 0 0 1px var(--bl-line-strong), 0 2px 4px -1px var(--bl-shadow-color),
-    0 18px 40px -14px color-mix(in oklab, var(--bl-shadow-color) 100%, var(--bl-shadow-color));
-  --bl-tip-shadow: 0 12px 32px -10px var(--bl-shadow-color), 0 2px 6px -2px var(--bl-shadow-color);
-
-  --bl-radius: 7px;
+  --bl-row: 48px;
   --bl-inset: 10px;
-  --bl-ruler: 30px;
-
+  --bl-radius: 8px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -71,37 +110,21 @@
   min-height: 0;
   container: bl-lanes / inline-size;
   isolation: isolate;
-  color: var(--bl-text);
-  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
-  font-size: 13px;
-  line-height: 18px;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
   letter-spacing: -0.006em;
+  color: var(--bl-text);
   text-align: left;
   -webkit-font-smoothing: antialiased;
 }
-
+/* Compact density keeps the reference's proportions on a 36px row. */
 .bl[data-density="compact"] {
-  --bl-inset: 7px;
-  --bl-radius: 6px;
+  --bl-row: 36px;
+  --bl-inset: 6px;
+  --bl-radius: 7px;
 }
-
-:where(.dark) .bl {
-  --bl-shimmer: color-mix(in oklab, var(--foreground) 14%, transparent);
-  --bl-line: color-mix(in oklab, var(--foreground) 9%, var(--bl-surface));
-  --bl-done: color-mix(in oklab, var(--foreground) 8.5%, var(--bl-surface));
-  --bl-fill: color-mix(in oklab, var(--foreground) 14%, var(--bl-surface));
-  --bl-bar: color-mix(in oklab, var(--foreground) 26%, var(--bl-surface));
-  --bl-run-bg: color-mix(in oklab, var(--bl-run) 22%, var(--bl-surface));
-  --bl-run-bg-hover: color-mix(in oklab, var(--bl-run) 29%, var(--bl-surface));
-  --bl-run-fg: color-mix(in oklab, var(--bl-run) 90%, var(--foreground));
-  --bl-warn-bg: color-mix(in oklab, var(--warning) 19%, var(--bl-surface));
-  --bl-danger-bg: color-mix(in oklab, var(--destructive) 20%, var(--bl-surface));
-  --bl-hover-band: color-mix(in oklab, var(--foreground) 3.6%, transparent);
-  --bl-group-band: color-mix(in oklab, var(--foreground) 3%, transparent);
-  --bl-tip-bg: color-mix(in oklab, var(--foreground) 96%, transparent);
-  --bl-dim: 0.34;
-}
-
 .bl *,
 .bl *::before,
 .bl *::after {
@@ -144,23 +167,18 @@
   white-space: nowrap;
 }
 
-/* ----- Frame: one scroll container, names column on the left ----- */
-
+/* ----- Lanes ----- */
+/* The reference's body: a 168px names column, 26px above for the ticks, 16px
+ * right of now, 12px below. Here the names column is resizable, the ticks sit
+ * in a sticky ruler, and the rows scroll. */
 .bl-frame {
   --bl-names: var(--bl-names-w, 168px);
-  --bl-gutter: 18px;
+  --bl-gutter: 16px;
   position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
 }
-@container bl-lanes (max-width: 520px) {
-  .bl-frame {
-    --bl-names: 52px;
-    --bl-gutter: 12px;
-  }
-}
-
 .bl-scroller {
   position: relative;
   flex: 1;
@@ -171,28 +189,21 @@
   scrollbar-width: thin;
   scrollbar-color: var(--bl-fill) transparent;
 }
+.bl-canvas {
+  position: relative;
+  box-sizing: content-box;
+  padding-bottom: 12px;
+}
 
-/* ----- Ruler ----- */
-
+/* Time ticks: labels above the track, quiet dashed lines through it. */
 .bl-ruler {
   position: sticky;
   top: 0;
   z-index: 6;
   display: grid;
   grid-template-columns: var(--bl-names) minmax(0, 1fr) var(--bl-gutter);
-  height: var(--bl-ruler);
-  background: var(--bl-surface);
-}
-/* A soft edge where rows pass beneath the ruler. */
-.bl-ruler::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: 10px;
-  background: linear-gradient(to bottom, var(--bl-surface), transparent);
-  pointer-events: none;
+  height: 26px;
+  background: var(--bl-card);
 }
 .bl-ruler-track {
   position: relative;
@@ -202,12 +213,14 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
-  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
 }
-.bl-ticks {
+.bl-ticks,
+.bl-grid {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   will-change: transform;
   animation: bl-fade 220ms ease both;
 }
@@ -215,24 +228,402 @@
   position: absolute;
   bottom: 0;
   width: 0;
-  height: 3px;
-  border-left: 1px solid var(--bl-line);
-}
-.bl-tick[data-major] {
-  height: 5px;
-  border-left-color: color-mix(in oklab, var(--foreground) 16%, var(--bl-surface));
+  height: 0;
 }
 .bl-tick-label {
   position: absolute;
-  bottom: 7px;
+  bottom: 100%;
   left: 0;
+  margin-bottom: 6px;
   font-size: 11px;
   line-height: 14px;
   color: var(--bl-faint);
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
   transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
 }
+.bl-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 0.5px dashed var(--bl-line);
+}
+
+/* Rows: quiet lane separators, as in the reference; bands carry hover and highlight. */
+.bl-bands,
+.bl-names {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.bl-bands {
+  right: 0;
+  bottom: 12px;
+  pointer-events: none;
+}
+.bl-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transition: background-color 160ms ease;
+}
+.bl-band::after {
+  content: "";
+  position: absolute;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  bottom: 0;
+  height: 0.5px;
+  background: var(--bl-line);
+}
+.bl-band[data-kind="group"] {
+  background: var(--bl-band);
+}
+.bl-band[data-kind="group"]::after {
+  left: 0;
+  right: 0;
+}
+.bl-band[data-kind="group"]:not([data-first])::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.5px;
+  background: var(--bl-line);
+}
+.bl-band[data-highlighted] {
+  background: var(--bl-highlight-band);
+}
+
+.bl-names {
+  width: var(--bl-names);
+  height: calc(100% - 12px);
+}
+.bl-name {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.bl-track {
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  cursor: grab;
+  touch-action: pan-y;
+}
+.bl[data-dragging] .bl-track,
+.bl[data-dragging] .bl-track * {
+  cursor: grabbing;
+}
+.bl[data-dragging] {
+  user-select: none;
+}
+
+.bl-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+}
+.bl-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.bl-curves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: visible;
+  color: var(--bl-rail);
+  pointer-events: none;
+  transition: opacity 220ms ease 80ms;
+}
+.bl-curve {
+  fill: none;
+  stroke: var(--bl-rail);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  transition:
+    opacity 160ms ease,
+    stroke 160ms ease;
+}
+.bl-curve[data-live] {
+  stroke: var(--bl-run-edge);
+  animation: bl-flow 900ms linear infinite;
+}
+.bl-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border: 1px solid var(--bl-rail);
+  border-radius: 50%;
+  background: var(--bl-card);
+  transition: opacity 160ms ease;
+}
+.bl-dot[data-live] {
+  border-color: var(--bl-run-edge);
+}
+
+.bl-lane,
+.bl-grouptrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name) {
+  transition: transform 320ms ease;
+}
+.bl[data-reflow] :is(.bl-curves, .bl-dot) {
+  opacity: 0;
+  transition: none;
+}
+
+.bl-slot {
+  position: absolute;
+  top: var(--bl-inset);
+  bottom: var(--bl-inset);
+  min-width: 6px;
+}
+/* Running and waiting blocks grow out of "now" from nothing, so they never poke past it */
+.bl-slot:is([data-status="running"], [data-status="waiting"]),
+.bl-slot:is([data-status="running"], [data-status="waiting"]) .bl-block {
+  min-width: 0;
+}
+.bl-slot[data-fresh]:not(:is([data-status="running"], [data-status="waiting"])) {
+  animation: bl-in 180ms ease both;
+}
+.bl-block {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 6px;
+  padding: 0 10px;
+  overflow: hidden;
+  border-radius: var(--bl-radius);
+  background: var(--bl-done);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
+  container-type: inline-size;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease,
+    opacity 160ms ease;
+}
+/* Titles stay readable when a block starts before the window: the content
+ * slides along the left edge (the controller sets its transform). */
+.bl-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.bl-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+}
+/* Tools: the plain logos side by side, before the title */
+.bl-tools {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-right: 6px;
+}
+.bl-tool {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+}
+.bl-tool > svg,
+.bl-glyph {
+  width: 12px;
+  height: 12px;
+}
+@container (max-width: 72px) {
+  .bl-tools {
+    display: none;
+  }
+}
+@container (max-width: 28px) {
+  .bl-content {
+    display: none;
+  }
+}
+.bl-block:hover {
+  background: var(--bl-fill);
+}
+.bl-block[data-status="running"] {
+  position: relative;
+  background: var(--bl-run-bg);
+  color: var(--bl-run-fg);
+  box-shadow: inset -2px 0 0 var(--bl-run-edge);
+}
+.bl-block[data-status="running"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat;
+  animation: bl-shimmer 2200ms ease-in-out infinite;
+  pointer-events: none;
+}
+.bl-block[data-status="waiting"] {
+  background: var(--bl-warn-bg);
+  color: var(--bl-warn-fg);
+}
+.bl-block[data-status="failed"] {
+  background: var(--bl-danger-bg);
+  color: var(--bl-danger-fg);
+}
+/* Interrupted: a settled block whose end is hatched, as if cut off. */
+.bl-block[data-status="interrupted"] {
+  position: relative;
+}
+.bl-block[data-status="interrupted"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(14px, 45%);
+  background: repeating-linear-gradient(-45deg, var(--bl-hatch) 0 1px, transparent 1px 4px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
+  mask-image: linear-gradient(to right, transparent, #000 70%);
+  pointer-events: none;
+}
+.bl-block[data-open] {
+  filter: brightness(0.97);
+}
+
+/* Needs you: a small flag inside the block's end, where it meets "now" */
+.bl-flag {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--bl-warn-fg);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+/* The reference pulses the whole flag; here only its contents, so a title
+ * beneath never shows through. */
+.bl-flag-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+.bl-slot:has(.bl-block[data-status="waiting"]) {
+  z-index: 2;
+}
+
+/* Clusters: short turns too close to tell apart, drawn as a barcode of where
+ * each ran (the gradient is set inline), with the count on a flag-like chip. */
+.bl-cluster {
+  --bl-bar: var(--bl-rail);
+  --bl-bar-interrupted: var(--bl-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 6px;
+  overflow: hidden;
+  border-radius: var(--bl-radius);
+  background-color: var(--bl-done);
+  container-type: inline-size;
+  transition:
+    background-color 300ms ease,
+    opacity 160ms ease;
+}
+.bl-cluster:hover {
+  background-color: var(--bl-fill);
+}
+.bl-cluster .bl-label {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  font-variant-numeric: tabular-nums;
+}
+.bl-cluster[data-status="failed"] .bl-label {
+  color: var(--bl-danger-fg);
+}
+@container (max-width: 34px) {
+  .bl-cluster .bl-label {
+    display: none;
+  }
+}
+
+/* A collapsed group: a silhouette of how many lanes were busy, by state. */
+.bl-strip {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--bl-radius);
+}
+.bl-strip:hover {
+  background: var(--bl-wash);
+}
+.bl-wave {
+  width: 100%;
+  height: 14px;
+}
+.bl-wave path {
+  shape-rendering: crispEdges;
+}
+.bl-wave [data-state="done"] {
+  fill: var(--bl-fill);
+}
+.bl-wave [data-state="interrupted"] {
+  fill: var(--bl-rail);
+}
+.bl-wave [data-state="failed"] {
+  fill: var(--bl-bar-failed);
+}
+.bl-wave [data-state="running"] {
+  fill: var(--bl-run-edge);
+}
+.bl-wave [data-state="waiting"] {
+  fill: var(--bl-warn-fg);
+  opacity: 0.6;
+}
+
+/* Now: a small label over the right edge, where running work meets the clock */
 .bl-ruler-nowclip,
 .bl-nowclip {
   position: absolute;
@@ -254,26 +645,24 @@
 }
 .bl-now-pill {
   position: absolute;
-  right: 0;
   bottom: 6px;
-  padding: 0 6px;
-  border-radius: 5px;
+  right: 0;
+  padding: 0 5px;
+  border-radius: 4px;
   background: var(--bl-run-bg);
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 16px;
-  letter-spacing: 0.01em;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
   color: var(--bl-run-fg);
-  translate: 50% 0;
 }
-.bl-now-pill::after {
-  content: "";
+.bl-now-line {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  width: 1px;
-  height: 6px;
-  background: color-mix(in oklab, var(--bl-run) 45%, transparent);
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  border-right: 0.5px solid var(--bl-run-edge);
+  opacity: 0.6;
 }
 
 /* Hovering the ruler: the clock time under the pointer, with a guide down the lanes. */
@@ -294,470 +683,25 @@
 .bl-hover-time::before {
   content: "";
   position: absolute;
-  top: var(--bl-ruler);
+  top: 26px;
   bottom: 0;
-  left: -0.5px;
-  border-left: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
+  left: 0;
+  border-left: 0.5px dashed var(--bl-rail);
 }
 .bl-hover-label {
   position: absolute;
   top: 6px;
   left: 0;
-  padding: 0 6px;
-  border-radius: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
   background: var(--bl-tip-bg);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 18px;
+  line-height: 14px;
   color: var(--bl-tip-strong);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   translate: -50% 0;
-}
-
-/* ----- Canvas: bands, names, track ----- */
-
-.bl-canvas {
-  position: relative;
-}
-.bl-bands,
-.bl-names {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.bl-bands {
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-}
-.bl-band {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  transition: background-color 160ms ease;
-}
-/* Quiet lane separators across the track, as in the reference. */
-.bl-band::after {
-  content: "";
-  position: absolute;
-  left: var(--bl-names);
-  right: var(--bl-gutter);
-  bottom: 0;
-  height: 1px;
-  background: var(--bl-line);
-}
-.bl-band[data-kind="group"] {
-  background: var(--bl-group-band);
-}
-.bl-band[data-kind="group"]::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--bl-line);
-}
-.bl-band[data-kind="group"][data-first]::before {
-  display: none;
-}
-.bl-band[data-kind="group"]::after {
-  left: 0;
-  right: 0;
-}
-.bl-band[data-highlighted] {
-  background: var(--bl-highlight-band);
-}
-
-.bl-names {
-  width: var(--bl-names);
-  height: 100%;
-}
-.bl-name {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  container-type: inline-size;
-}
-.bl-track {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--bl-names);
-  right: var(--bl-gutter);
-  cursor: grab;
-  touch-action: pan-y;
-}
-.bl[data-dragging] .bl-track,
-.bl[data-dragging] .bl-track * {
-  cursor: grabbing;
-}
-.bl[data-dragging] {
-  user-select: none;
-}
-
-/* Blocks fade out through the left edge as the window slides. */
-.bl-clip {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
-  mask-image: linear-gradient(to right, transparent 0, #000 40px);
-}
-.bl-grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  will-change: transform;
-  animation: bl-fade 220ms ease both;
-}
-.bl-gridline {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  border-left: 1px dashed var(--bl-line);
-}
-.bl-layer {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-}
-
-/* ----- Hand-offs ----- */
-
-.bl-curves {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  overflow: visible;
-  color: var(--bl-rail);
-  pointer-events: none;
-  transition: opacity 220ms ease 80ms;
-}
-.bl-curve {
-  fill: none;
-  stroke: var(--bl-rail);
-  stroke-width: 1px;
-  stroke-dasharray: 3 3;
-  transition:
-    opacity 160ms ease,
-    stroke 160ms ease;
-}
-.bl-curve[data-live] {
-  stroke: var(--bl-run-edge);
-  animation: bl-flow 900ms linear infinite;
-}
-.bl-curve[data-stub] {
-  stroke-dasharray: 2 3;
-}
-.bl-dot {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px 0 0 -3.5px;
-  border: 1.5px solid var(--bl-rail);
-  border-radius: 50%;
-  background: var(--bl-surface);
-  transition:
-    opacity 160ms ease,
-    border-color 160ms ease;
-}
-.bl-dot[data-live] {
-  border-color: var(--bl-run-edge);
-}
-
-/* ----- Lanes and blocks ----- */
-
-.bl-lane,
-.bl-grouptrack {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-}
-.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name, .bl-mark) {
-  transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.bl[data-reflow] :is(.bl-curves, .bl-dot) {
-  opacity: 0;
-  transition: none;
-}
-
-.bl-slot {
-  position: absolute;
-  top: var(--bl-inset);
-  bottom: var(--bl-inset);
-  min-width: 6px;
-}
-/* Running and waiting blocks grow out of now from nothing; the now line clips them. */
-.bl-slot:is([data-status="running"], [data-status="waiting"]),
-.bl-slot:is([data-status="running"], [data-status="waiting"]) .bl-block {
-  min-width: 0;
-}
-.bl-slot[data-fresh]:not(:is([data-status="running"], [data-status="waiting"])) {
-  animation: bl-reveal 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.bl-slot:has(.bl-block[data-status="waiting"]) {
-  z-index: 2;
-}
-
-.bl-block,
-.bl-cluster {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  min-width: 6px;
-  overflow: hidden;
-  border-radius: var(--bl-radius);
-  white-space: nowrap;
-  container-type: inline-size;
-  transition:
-    background-color 300ms ease,
-    color 300ms ease,
-    opacity 180ms ease 30ms,
-    box-shadow 160ms ease;
-}
-.bl-block {
-  --bl-block-bg: var(--bl-done);
-  padding: 0 9px;
-  background: var(--bl-block-bg);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  color: var(--bl-done-fg);
-}
-.bl-block:hover {
-  --bl-block-bg: var(--bl-fill);
-  transition-duration: 0ms, 300ms, 180ms, 160ms;
-}
-/* Long titles fade into the block's end instead of being cut. */
-.bl-block::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  width: 22px;
-  background: linear-gradient(to right, transparent, var(--bl-block-bg) 60%);
-  pointer-events: none;
-}
-.bl-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.bl-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: clip;
-}
-/* Tools: small glyphs side by side, before the title. */
-.bl-tools {
-  display: flex;
-  flex: none;
-  gap: 3px;
-}
-.bl-tool {
-  display: grid;
-  place-items: center;
-  width: 12px;
-  height: 12px;
-  opacity: 0.85;
-}
-.bl-glyph {
-  width: 12px;
-  height: 12px;
-}
-@container (max-width: 72px) {
-  .bl-tools {
-    display: none;
-  }
-}
-@container (max-width: 28px) {
-  .bl-content {
-    display: none;
-  }
-}
-
-.bl-block[data-status="running"] {
-  --bl-block-bg: var(--bl-run-bg);
-  color: var(--bl-run-fg);
-}
-.bl-block[data-status="running"]:hover {
-  --bl-block-bg: var(--bl-run-bg-hover);
-}
-/* The shimmer passes beneath the title, so the text stays crisp. */
-.bl-block[data-status="running"]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat;
-  animation: bl-shimmer 2200ms ease-in-out infinite;
-  pointer-events: none;
-}
-.bl-block[data-status="waiting"] {
-  --bl-block-bg: var(--bl-warn-bg);
-  color: var(--bl-warn-fg);
-}
-.bl-block[data-status="waiting"]:hover {
-  --bl-block-bg: var(--bl-warn-bg-hover);
-}
-.bl-block[data-status="failed"] {
-  --bl-block-bg: var(--bl-danger-bg);
-  color: var(--bl-danger-fg);
-}
-.bl-block[data-status="failed"]:hover {
-  --bl-block-bg: var(--bl-danger-bg-hover);
-}
-/* Interrupted: a settled block whose end is hatched, as if cut off. */
-.bl-block[data-status="interrupted"]::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  width: min(16px, 45%);
-  background: repeating-linear-gradient(-45deg, var(--bl-hatch) 0 1.5px, transparent 1.5px 4.5px);
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
-  mask-image: linear-gradient(to right, transparent, #000 70%);
-  pointer-events: none;
-}
-.bl-block[data-open] {
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
-}
-
-/* Clusters: several short turns too close to tell apart, drawn as a barcode
- * of where each one ran (the gradient is set inline). */
-.bl-cluster {
-  justify-content: center;
-  background-color: var(--bl-done);
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 14px;
-  color: var(--bl-text);
-}
-.bl-cluster:hover {
-  background-color: var(--bl-fill);
-}
-.bl-cluster .bl-label {
-  position: relative;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--bl-surface);
-  box-shadow: 0 0 0 1px var(--bl-line);
-  font-variant-numeric: tabular-nums;
-}
-.bl-cluster[data-status="failed"] .bl-label {
-  color: var(--bl-danger-fg);
-}
-@container (max-width: 34px) {
-  .bl-cluster .bl-label {
-    display: none;
-  }
-}
-
-/* ----- Collapsed group: the merged activity strip ----- */
-
-.bl-strip {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  border-radius: 6px;
-}
-.bl-strip:hover {
-  background: var(--bl-hover-band);
-}
-.bl-wave {
-  width: 100%;
-  height: 100%;
-}
-.bl-wave path {
-  fill: var(--bl-rail);
-}
-.bl-wave [data-state="done"] {
-  fill: color-mix(in oklab, var(--foreground) 22%, var(--bl-surface));
-}
-.bl-wave [data-state="interrupted"] {
-  fill: color-mix(in oklab, var(--foreground) 30%, var(--bl-surface));
-}
-.bl-wave [data-state="failed"] {
-  fill: color-mix(in oklab, var(--destructive) 60%, var(--bl-surface));
-}
-.bl-wave [data-state="running"] {
-  fill: color-mix(in oklab, var(--bl-run) 70%, var(--bl-surface));
-}
-.bl-wave [data-state="waiting"] {
-  fill: var(--bl-warn);
-}
-
-/* ----- Now: the hairline, each open block's growing edge, the Needs you flag ----- */
-
-.bl-now-line {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: -0.5px;
-  width: 1px;
-  background: color-mix(in oklab, var(--bl-run) 40%, transparent);
-}
-.bl-mark {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 0;
-}
-.bl-cap {
-  position: absolute;
-  top: var(--bl-inset);
-  bottom: var(--bl-inset);
-  right: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--bl-run-edge);
-}
-.bl-mark[data-status="waiting"] .bl-cap {
-  background: color-mix(in oklab, var(--bl-warn) 80%, var(--bl-surface));
-}
-.bl-flag {
-  position: absolute;
-  top: 50%;
-  right: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  border-radius: 5px;
-  background: var(--bl-surface);
-  box-shadow: var(--bl-shadow);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 18px;
-  color: var(--bl-warn-fg);
-  white-space: nowrap;
-  transform: translateY(-50%);
-}
-/* Only the mark pulses: the flag itself stays opaque over the block's title. */
-.bl-flag svg {
-  animation: bl-pulse 1600ms ease-in-out infinite;
-}
-.bl[data-density="compact"] .bl-flag {
-  line-height: 16px;
 }
 
 /* ----- Popovers ----- */
@@ -771,15 +715,23 @@
   transform: translateY(-100%);
   animation-name: bl-in-up;
 }
-
-/* What got done: a small dark tooltip (it turns light in dark mode, like the reference). */
+/* Decide in place */
+.bl-ask {
+  display: grid;
+  gap: 2px;
+  width: 290px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
+}
+/* What got done: a small dark tooltip */
 .bl-tip {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   width: max-content;
-  min-width: 200px;
-  max-width: 320px;
-  padding: 10px 12px 9px;
+  max-width: 250px;
+  padding: 10px 12px;
   border-radius: 12px;
   background: var(--bl-tip-bg);
   -webkit-backdrop-filter: blur(8px);
@@ -792,11 +744,9 @@
 }
 .bl-tip-head {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   font-size: 11.5px;
-  line-height: 15px;
   color: var(--bl-tip-muted);
   white-space: nowrap;
 }
@@ -806,31 +756,11 @@
   text-overflow: ellipsis;
 }
 .bl-tip-num {
+  flex: none;
   font-variant-numeric: tabular-nums;
 }
-.bl-tip-dot {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--bl-tip-muted);
-}
-.bl-tip[data-status="running"] .bl-tip-dot {
-  background: var(--bl-run-edge);
-}
-.bl-tip[data-status="failed"] .bl-tip-dot {
-  background: var(--bl-danger);
-}
-.bl-tip[data-status="interrupted"] .bl-tip-dot {
-  background: transparent;
-  box-shadow: inset 0 0 0 1.5px var(--bl-tip-muted);
-}
 .bl-tip-title {
-  font-weight: 500;
   color: var(--bl-tip-strong);
-}
-.bl-tip-empty {
-  color: var(--bl-tip-muted);
 }
 .bl-tip-list {
   display: grid;
@@ -843,251 +773,175 @@
 .bl-tip-list li::before {
   content: "";
   position: absolute;
-  top: 7px;
+  top: 8px;
   left: 1px;
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: var(--bl-tip-muted);
+  background: var(--bl-tip-dot);
 }
 .bl-tip-skeleton {
   display: grid;
   gap: 6px;
-  padding: 3px 0 2px;
+  padding: 4px 0 3px 10px;
 }
 .bl-tip-skeleton span {
   height: 9px;
   border-radius: 4px;
-  background: linear-gradient(90deg, var(--bl-tip-line) 0%, color-mix(in oklab, var(--bl-surface) 26%, transparent) 50%, var(--bl-tip-line) 100%) 0 0 / 200% 100%;
-  animation: bl-skeleton 1300ms ease-in-out infinite;
+  background:
+    linear-gradient(90deg, transparent 0%, var(--bl-tip-dot) 50%, transparent 100%) 0 0 / 50% 100% no-repeat,
+    color-mix(in srgb, var(--bl-tip-dot) 40%, transparent);
+  animation: bl-shimmer 2200ms ease-in-out infinite;
 }
 .bl-tip-skeleton span:nth-child(1) {
   width: 92%;
 }
 .bl-tip-skeleton span:nth-child(2) {
-  width: 74%;
+  width: 70%;
 }
 .bl-tip-skeleton span:nth-child(3) {
-  width: 52%;
+  width: 48%;
 }
-.bl-tip-recent {
-  display: grid;
-  gap: 2px;
-  padding: 6px 0 0;
-  border-top: 1px solid var(--bl-tip-line);
-}
-.bl-tip-recent li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--bl-tip-text);
-}
-.bl-tip-recent li span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bl-tip-glyph {
-  flex: none;
-  width: 11px;
-  height: 11px;
-  opacity: 0.7;
+.bl-tip-empty,
+.bl-tip-counts {
+  font-size: 11.5px;
+  color: var(--bl-tip-muted);
 }
 .bl-tip-counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 10px;
-  font-size: 11px;
-  line-height: 15px;
-  color: var(--bl-tip-muted);
+  gap: 0 8px;
 }
 .bl-tip-actions {
   display: flex;
-  gap: 14px;
-  margin-top: 3px;
+  gap: 12px;
+  margin-top: 2px;
 }
 .bl-tip-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  justify-self: start;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--bl-tip-strong);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, var(--bl-surface) 35%, transparent);
+  text-decoration-color: var(--bl-tip-rule);
   text-underline-offset: 2px;
 }
 .bl-tip-open--quiet {
   color: var(--bl-tip-text);
-  text-decoration-color: transparent;
-}
-.bl-tip-open:hover {
-  text-decoration-color: currentColor;
 }
 .bl-tip-open kbd {
-  display: inline-grid;
-  place-items: center;
-  min-width: 16px;
-  height: 15px;
-  padding: 0 3px;
-  border-radius: 4px;
-  background: var(--bl-tip-line);
-  font-size: 10px;
-  line-height: 1;
-  color: var(--bl-tip-muted);
-  text-decoration: none;
-}
-
-/* Decide in place. */
-.bl-ask {
-  display: grid;
-  gap: 3px;
-  width: 300px;
-  max-width: calc(100cqw - 16px);
-  padding: 13px 14px 14px;
-  border-radius: 14px;
-  background: var(--popover, var(--bl-surface));
-  box-shadow: var(--bl-pop-shadow);
-  color: var(--bl-text);
-}
-.bl-ask-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-  margin-bottom: 3px;
+  margin-left: 4px;
   font-size: 11px;
-  font-weight: 600;
-  line-height: 15px;
-  color: var(--bl-warn-fg);
-  white-space: nowrap;
-}
-.bl-ask-meta {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 400;
-  color: var(--bl-muted);
-  text-overflow: ellipsis;
-}
-.bl-ask-meta::before {
-  content: "·";
-  margin: 0 4px 0 1px;
+  color: var(--bl-tip-muted);
 }
 .bl-ask-title {
   font-weight: 500;
-  color: var(--bl-ink);
+  color: var(--bl-strong);
 }
 .bl-ask-text {
-  font-size: 12.5px;
-  line-height: 17px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--bl-text);
 }
 .bl-ask-actions {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
-.bl-ask-spacer {
-  flex: 1;
+.bl-ask-actions .bl-link {
+  margin-right: auto;
 }
 .bl-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   height: 30px;
   padding: 0 12px;
   border-radius: 9px;
-  background: var(--bl-surface);
+  background: var(--bl-card);
   box-shadow: var(--bl-shadow);
   font-size: 13px;
   font-weight: 500;
-  color: var(--bl-ink);
-  white-space: nowrap;
-  transition: background-color 120ms ease;
+  color: var(--bl-strong);
 }
 .bl-btn:hover {
-  background: color-mix(in oklab, var(--foreground) 4%, var(--bl-surface));
+  background: var(--bl-wash);
 }
 .bl-btn--primary {
-  background: var(--primary);
+  background: var(--bl-solid);
   box-shadow: none;
-  color: var(--primary-foreground);
+  color: var(--bl-on-solid);
 }
 .bl-btn--primary:hover {
-  background: color-mix(in oklab, var(--primary) 86%, var(--bl-surface));
+  background: var(--bl-solid-hover);
 }
 .bl-link {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--bl-text);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+  text-decoration-color: var(--bl-line);
   text-underline-offset: 2px;
 }
 .bl-link:hover {
-  color: var(--bl-ink);
+  color: var(--bl-strong);
+  text-decoration-color: var(--bl-rail);
 }
 
 /* ----- Floating controls ----- */
 
+/* Jump to now: the reference's "Last 30m" pill, floating, with the summary's needs-you mark. */
 .bl-jump {
   position: absolute;
-  right: calc(var(--bl-gutter) + 6px);
+  right: calc(var(--bl-gutter) + 8px);
   bottom: 16px;
   z-index: 8;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 5px 0 12px;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
   border-radius: 999px;
-  background: var(--bl-tip-bg);
-  box-shadow: var(--bl-tip-shadow);
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
   font-size: 12px;
   font-weight: 500;
-  color: var(--bl-tip-strong);
+  line-height: 16px;
+  color: var(--bl-text);
   opacity: 0;
-  translate: 0 10px;
+  transform: translateY(3px);
   pointer-events: none;
   transition:
     opacity 180ms ease,
-    translate 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform 180ms ease;
 }
 .bl-jump[data-visible] {
   opacity: 1;
-  translate: 0 0;
+  transform: none;
   pointer-events: auto;
 }
+.bl-jump:hover {
+  color: var(--bl-strong);
+}
 .bl-jump kbd {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
   padding: 0 5px;
-  border-radius: 999px;
-  background: var(--bl-tip-line);
-  font-size: 10.5px;
-  color: var(--bl-tip-muted);
+  border-radius: 4px;
+  background: var(--bl-fill);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--bl-muted);
 }
 .bl-jump-needs {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding-right: 8px;
-  border-right: 1px solid var(--bl-tip-line);
-  color: color-mix(in oklab, var(--warning) 70%, var(--bl-tip-strong));
+  color: var(--bl-warn-fg);
 }
 .bl-jump-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--warning);
+  background: var(--bl-warn-fg);
   animation: bl-pulse 1600ms ease-in-out infinite;
 }
 
@@ -1108,9 +962,9 @@
   bottom: 0;
   left: 3.5px;
   width: 1px;
-  background: var(--bl-line-strong);
+  background: var(--bl-rail);
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 160ms ease;
 }
 .bl-resize:hover::after,
 .bl-resize:focus-visible::after,
@@ -1139,28 +993,27 @@
 }
 .bl-empty-ghosts {
   position: absolute;
-  inset: 24px 24px auto;
+  inset: 26px 16px auto 0;
   display: grid;
   grid-auto-rows: 48px;
-  opacity: 0.55;
   -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
   mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
 }
 .bl-empty-lane {
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   align-items: center;
 }
 .bl-empty-name {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-left: 12px;
+  padding: 0 12px 0 16px;
 }
 .bl-empty-avatar {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--bl-done);
 }
@@ -1177,72 +1030,47 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: var(--bl-radius);
+  border-radius: 8px;
   background: var(--bl-done);
 }
 .bl-empty-curve {
   position: absolute;
-  inset: 0 0 0 148px;
-  width: calc(100% - 148px);
+  inset: 0 0 0 168px;
+  width: calc(100% - 168px);
   height: 192px;
   overflow: visible;
 }
 .bl-empty-curve path {
   fill: none;
-  stroke: var(--bl-line-strong);
-  stroke-width: 1px;
+  stroke: var(--bl-rail);
+  stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 .bl-empty-copy {
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 4px;
-  max-width: 340px;
-  padding: 20px 24px;
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--bl-surface) 86%, transparent);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  gap: 2px;
+  max-width: 320px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
   text-align: center;
 }
 .bl-empty-copy p {
   margin: 0;
 }
 .bl-empty-title {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  color: var(--bl-ink);
+  font-weight: 500;
+  color: var(--bl-strong);
 }
 .bl-empty-text-line {
   margin-bottom: 10px !important;
-  font-size: 12.5px;
-  color: var(--bl-muted);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-text);
 }
-
-/* ----- Narrow: names shrink to avatars ----- */
-
-@container bl-lanes (max-width: 520px) {
-  .bl-tip {
-    max-width: 260px;
-  }
-  .bl-jump {
-    bottom: 12px;
-  }
-  .bl-empty-lane {
-    grid-template-columns: 48px minmax(0, 1fr);
-  }
-  .bl-empty-text {
-    display: none;
-  }
-  .bl-empty-curve {
-    inset: 0 0 0 48px;
-    width: calc(100% - 48px);
-  }
-}
-
-/* ----- Motion ----- */
 
 @keyframes bl-pulse {
   50% {
@@ -1255,14 +1083,6 @@
   }
   to {
     background-position: 200% 0;
-  }
-}
-@keyframes bl-skeleton {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: -100% 0;
   }
 }
 @keyframes bl-flow {
@@ -1290,16 +1110,26 @@
     opacity: 0;
   }
 }
-@keyframes bl-reveal {
-  from {
-    opacity: 0.2;
-    clip-path: inset(0 100% 0 0 round var(--bl-radius));
+
+/* Narrow containers: the names column shrinks to the avatars */
+@container bl-lanes (max-width: 520px) {
+  .bl-frame {
+    --bl-names: 48px;
   }
-  to {
-    clip-path: inset(0 0 0 0 round var(--bl-radius));
+  .bl-empty-lane {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .bl-empty-name {
+    padding: 0 0 0 11px;
+  }
+  .bl-empty-text {
+    display: none;
+  }
+  .bl-empty-curve {
+    inset: 0 0 0 48px;
+    width: calc(100% - 48px);
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .bl *,
   .bl *::before,

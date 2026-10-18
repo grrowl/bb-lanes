@@ -99,13 +99,17 @@ export function LanesTimeline(props: TimelineProps) {
     controller.adopt(viewport);
   }, [controller, viewport.end, viewport.span, viewport.live]);
 
-  // Open blocks reach a little past now; a slow tick keeps them there.
+  // Open blocks end at the frame's clock time; re-cut it often enough that
+  // they keep meeting the now line.
   useEffect(() => {
     if (!hasOpen) return;
-    const timer = window.setInterval(() => {
+    let timer = 0;
+    const tick = () => {
       setFrame((f) => (f ? { ...f, now: controller.clock.read() } : f));
-    }, 1000);
-    return () => window.clearInterval(timer);
+      timer = window.setTimeout(tick, controller.openCadence());
+    };
+    timer = window.setTimeout(tick, controller.openCadence());
+    return () => window.clearTimeout(timer);
   }, [controller, hasOpen]);
 
   // ----- DOM refs and measurement -----
@@ -193,13 +197,12 @@ export function LanesTimeline(props: TimelineProps) {
 
   // ----- Items per row -----
 
-  const lookahead = controller.openLookahead();
   const itemsCache = useRef(new Map<string, { key: string; series: unknown; items: TrackItem[] }>());
   const itemsForRow = useCallback(
     (row: LaneRow): TrackItem[] => {
       const series = index.byThread.get(row.id);
       const open = series ? series.maxEnd[series.maxEnd.length - 1] === Infinity : false;
-      const openEnd = open ? activeFrame.now + lookahead : 0;
+      const openEnd = open ? activeFrame.now : 0;
       const { from, to, span, width } = activeFrame;
       const key = `${from}|${to}|${span}|${Math.round(width)}|${openEnd}`;
       const cached = itemsCache.current.get(row.id);
@@ -208,7 +211,7 @@ export function LanesTimeline(props: TimelineProps) {
       itemsCache.current.set(row.id, { key, series, items });
       return items;
     },
-    [index, activeFrame, lookahead],
+    [index, activeFrame],
   );
 
   // A focused or open item stays drawn even when it scrolls or slides away.
@@ -240,7 +243,7 @@ export function LanesTimeline(props: TimelineProps) {
   const stripFor = (row: GroupRow): ActivityStrip => {
     const { from, to, span, width, now: frameNow } = activeFrame;
     const binMs = Math.max(1000, (STRIP_BIN_PX * span) / Math.max(1, width || 960));
-    const openEnd = frameNow + lookahead;
+    const openEnd = frameNow;
     const key = `${from}|${to}|${binMs}|${openEnd}|${row.threadIds.join(",")}`;
     const cached = stripCache.current.get(row.id);
     if (cached && cached.key === key && cached.index === index) return cached.strip;
@@ -268,7 +271,7 @@ export function LanesTimeline(props: TimelineProps) {
   const navModel = useCallback((): nav.NavModel => {
     const win = controller.window();
     const cache = new Map<number, nav.NavItem[]>();
-    const openEnd = controller.clock.read() + lookahead;
+    const openEnd = controller.clock.read();
     return {
       rowCount: layout.rows.length,
       from: win.from,
@@ -288,7 +291,7 @@ export function LanesTimeline(props: TimelineProps) {
         return items;
       },
     };
-  }, [controller, layout, index, lookahead]);
+  }, [controller, layout, index]);
 
   // Keep the roving tab stop on something drawn, so Tab always lands in view.
   useLayoutEffect(() => {
@@ -893,7 +896,6 @@ export function LanesTimeline(props: TimelineProps) {
               <div className="bl-nowclip" aria-hidden="true">
                 <div ref={registerNow} className="bl-now">
                   <span className="bl-now-line" />
-                  <NowMarks layout={layout} renderedRows={renderedRows} index={index} />
                 </div>
               </div>
               {openBlock && openRowIndex >= 0 && (
@@ -1243,41 +1245,6 @@ function HeaderCell({
     >
       {render(row, { hovered, focused })}
     </div>
-  );
-}
-
-/** At the now line: the growing edge of each open block, and the "Needs you" flag. */
-function NowMarks({ layout, renderedRows, index }: { layout: RowLayout; renderedRows: number[]; index: BlockIndex }) {
-  return (
-    <>
-      {renderedRows.map((i) => {
-        const row = layout.rows[i]!;
-        if (row.kind !== "lane") return null;
-        const open = openBlocksOf(index, row.id);
-        if (open.length === 0) return null;
-        const waiting = open.some((b) => b.status === "waiting");
-        const top = layout.tops[i]!;
-        const height = layout.heights[i]!;
-        return (
-          <span
-            key={row.id}
-            className="bl-mark"
-            data-status={waiting ? "waiting" : "running"}
-            style={{ transform: `translateY(${top}px)`, height }}
-          >
-            <span className="bl-cap" />
-            {waiting && (
-              <span className="bl-flag">
-                <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
-                  <path d="M6 1.8 10.8 10H1.2L6 1.8Z" fill="currentColor" />
-                </svg>
-                Needs you
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </>
   );
 }
 
