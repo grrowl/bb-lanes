@@ -81,8 +81,6 @@ export interface TimelineProps {
 
   /** Thread id to emphasise (e.g. the thread open in another pane). */
   highlightedThreadId?: string | null;
-  /** How hand-off lines are drawn, per kind. Defaults to `DEFAULT_LINE_STYLES`. */
-  lineStyles?: HandoffLineStyles;
   className?: string;
 
   /**
@@ -96,18 +94,20 @@ export interface TimelineProps {
   emptyState?: ReactNode;
 }
 
-// Hand-off lines join two lanes at the moment one thread started or messaged
-// another: they leave the sender's lane at `handoff.at` (inside the reply that
-// did it, not at the end of the block) and land on the start of the target
-// block. Each kind has its own drawing style, which the user can change.
+// Hand-off lines join two lanes at the moment one thread started, messaged,
+// or reported back to another: they leave the sender's lane at `handoff.at`
+// (inside the reply that did it, not at the end of the block) and land on the
+// start of the target block. The styles are fixed opinions, not settings: one
+// look per kind, so a glance reads the same for everyone.
 
 export type LineStroke = "solid" | "dashed" | "dotted";
-/** What sits on a line's end. "dot" is a small filled circle, "circle" an open ring. */
+/** "dot" is a filled circle, "circle" an open ring. */
 export type LineCap = "none" | "dot" | "circle" | "arrow";
-/** "auto" colours a line by its target block's state: running blue, waiting amber, failed red, otherwise neutral. */
-export type LineColor = "auto" | "neutral" | "blue" | "red" | "amber" | "green" | "violet";
+export type LineColor = "red" | "blue" | "neutral";
 
 export interface HandoffLineStyle {
+  /** What the line is called in tooltips and legends. */
+  label: string;
   stroke: LineStroke;
   /** Cap at the sender's end (the moment in the reply). */
   start: LineCap;
@@ -116,9 +116,9 @@ export interface HandoffLineStyle {
   color: LineColor;
 }
 
-export type HandoffLineStyles = Record<import("./model").HandoffKind, HandoffLineStyle>;
-
-export const DEFAULT_LINE_STYLES: HandoffLineStyles = {
-  spawn: { stroke: "solid", start: "dot", end: "arrow", color: "auto" },
-  tell: { stroke: "dashed", start: "dot", end: "arrow", color: "auto" },
+export const HANDOFF_LINES: Record<import("./model").HandoffKind, HandoffLineStyle> = {
+  spawn: { label: "Created", stroke: "solid", start: "none", end: "dot", color: "red" },
+  tell: { label: "Messaged", stroke: "dashed", start: "none", end: "arrow", color: "blue" },
+  end: { label: "Ended", stroke: "solid", start: "none", end: "circle", color: "red" },
+  fork: { label: "Forked", stroke: "dotted", start: "none", end: "arrow", color: "neutral" },
 };

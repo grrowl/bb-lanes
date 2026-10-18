@@ -37,7 +37,7 @@ export const laneBlockSchema = z.object({
 
 export const laneHandoffSchema = z.object({
   id: z.string(),
-  kind: z.enum(["spawn", "tell"]),
+  kind: z.enum(["spawn", "fork", "tell", "end"]),
   fromThreadId: z.string(),
   fromBlockId: z.string().nullable(),
   toThreadId: z.string(),
