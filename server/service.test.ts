@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { createFakePluginHost, makeThreadResponse } from "@get-bb/plugin-sdk/testing";
 import plugin from "../server";
-import { LANES_CHANGED, type LanesSnapshot } from "../shared/model";
+import { LANES_CHANGED, type LaneNeighbors, type LanesSnapshot } from "../shared/model";
 import { emptyIndex, foldEvents, INDEX_VERSION, type IndexEvent, type IndexThread } from "./indexer";
 import { LanesStorage } from "./storage";
 
@@ -22,6 +22,15 @@ function seed(storage: LanesStorage, id: string, start: number, end: number | nu
   const events = [event(1, "client/turn/requested", "", { requestId: "r", source: parentThreadId ? "spawn" : "send",
     input: [{ type: "text", text: "Do the work" }] }, start), event(2, "turn/started", `turn-${id}`, {}, start)];
   if (end !== null) events.push(event(3, "turn/completed", `turn-${id}`, { status: "completed" }, end));
+  storage.save(thread, foldEvents(emptyIndex(), events, thread));
+}
+function seedTurns(storage: LanesStorage, threadId: string, turns: [id: string, start: number, end: number | null][]) {
+  const thread: IndexThread = { id: threadId, parentThreadId: null, status: "active", updatedAt: Date.now() };
+  const events: IndexEvent[] = [];
+  for (const [id, start, end] of turns) {
+    events.push(event(events.length + 1, "turn/started", id, {}, start));
+    if (end !== null) events.push(event(events.length + 1, "turn/completed", id, { status: "completed" }, end));
+  }
   storage.save(thread, foldEvents(emptyIndex(), events, thread));
 }
 function setup(initial: IndexEvent[] = []) {
@@ -74,6 +83,77 @@ describe("lanes backend", () => {
     const scoped = await host.harness.behavior.callRpc("lanes_window", { since: 100, threadIds: ["current"] }) as LanesSnapshot;
     expect(scoped.blocks.map(b => b.id)).toEqual(["turn-current"]);
     expect((await host.harness.behavior.callRpc("lanes_window", { since: 0, threadIds: [] }) as LanesSnapshot).blocks).toEqual([]);
+  });
+  it("returns neighboring turns by latest end and earliest start, including older history", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    const day = 86400000;
+    seedTurns(storage, "t", [["long", 1, 4 * day], ["short", 2 * day, 3 * day],
+      ["visible", 6 * day, 7 * day], ["later", 12 * day, 13 * day], ["next", 10 * day, 11 * day]]);
+    const result = await host.harness.behavior.callRpc("lanes_neighbors", { threadIds: ["t"], from: 5 * day, to: 9 * day }) as { neighbors: Record<string, LaneNeighbors> };
+    expect(result.neighbors.t.prev?.id).toBe("long");
+    expect(result.neighbors.t.next?.id).toBe("next");
+    expect(host.list).not.toHaveBeenCalled();
+    expect(host.harness.inspection.sdk.calls).toEqual([]);
+  });
+  it("uses open turns' starts for previous neighbors and respects strict bounds", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    seedTurns(storage, "open", [["closed", 10, 40], ["running", 90, null]]);
+    seedTurns(storage, "edges", [["ends-at-from", 10, 100], ["crosses-from", 90, 110],
+      ["open-at-from", 100, null], ["starts-at-to", 200, 210], ["after-to", 201, null]]);
+    const result = storage.neighbors(["open", "edges"], 100, 200).neighbors;
+    expect(result.open.prev).toMatchObject({ id: "running", start: 90, end: null });
+    expect(result.open.next).toBeNull();
+    expect(result.edges.prev).toBeNull();
+    expect(result.edges.next).toMatchObject({ id: "after-to", start: 201, end: null });
+  });
+  it("omits threads with no outside turns and returns null for a missing side", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    seedTurns(storage, "inside", [["visible", 110, 120]]);
+    seedTurns(storage, "before", [["prev", 10, 20]]);
+    seedTurns(storage, "after", [["next", 210, 220]]);
+    seedTurns(storage, "unrequested", [["ignore", 10, 20]]);
+    const result = await host.harness.behavior.callRpc("lanes_neighbors", {
+      threadIds: ["unknown", "inside", "before", "after", "before"], from: 100, to: 200,
+    }) as { neighbors: Record<string, LaneNeighbors> };
+    expect(Object.keys(result.neighbors)).toEqual(["before", "after"]);
+    expect(result.neighbors.before.prev?.id).toBe("prev");
+    expect(result.neighbors.before.next).toBeNull();
+    expect(result.neighbors.after.prev).toBeNull();
+    expect(result.neighbors.after.next?.id).toBe("next");
+  });
+  it("breaks neighboring turn ties consistently by start and then block id", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    seedTurns(storage, "t", [["earlier-start", 10, 90], ["prev-a", 20, 90], ["prev-z", 20, 90],
+      ["next-z", 210, 220], ["next-a", 210, 230]]);
+    const result = storage.neighbors(["t"], 100, 200).neighbors.t;
+    expect(result.prev?.id).toBe("prev-z");
+    expect(result.next?.id).toBe("next-a");
+  });
+  it("queries neighbors for 200 threads through RPC in under 20ms without reading events", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    const threadIds = Array.from({ length: 200 }, (_, i) => `neighbor-${i}`);
+    for (const threadId of threadIds) {
+      seedTurns(storage, threadId, Array.from({ length: 20 }, (_, j) => [`${threadId}-${j}`, j * 1000, j * 1000 + 500]));
+    }
+    const start = performance.now();
+    const result = await host.harness.behavior.callRpc("lanes_neighbors", { threadIds, from: 10000, to: 11000 }) as { neighbors: Record<string, LaneNeighbors> };
+    const duration = performance.now() - start;
+    expect(Object.keys(result.neighbors)).toHaveLength(200);
+    expect(result.neighbors[threadIds[0]].prev?.id).toBe("neighbor-0-9");
+    expect(result.neighbors[threadIds[0]].next?.id).toBe("neighbor-0-12");
+    expect(duration).toBeLessThan(20);
+    expect(host.list).not.toHaveBeenCalled();
+    expect(host.harness.inspection.sdk.calls).toEqual([]);
   });
   it("includes handoffs whose target overlaps and resolves the sender turn independent of index order", async () => {
     const host = setup();

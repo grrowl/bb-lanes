@@ -76,6 +76,20 @@ export const rpcContract = defineRpcContract({
     input: z.object({ threadId: z.string(), blockId: z.string() }),
     output: blockDetailSchema,
   },
+  /** For each thread, its nearest block before `from` and after `to`. Keyed by thread id; threads with neither are omitted. */
+  lanes_neighbors: {
+    input: z.object({
+      threadIds: z.array(z.string()).min(1).max(500),
+      from: z.number(),
+      to: z.number(),
+    }),
+    output: z.object({
+      neighbors: z.record(
+        z.string(),
+        z.object({ prev: laneBlockSchema.nullable(), next: laneBlockSchema.nullable() }),
+      ),
+    }),
+  },
   /** Answer an inline approval from the lanes ("approve" | "reject"). */
   lanes_decide: {
     input: z.object({

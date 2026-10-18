@@ -133,6 +133,18 @@ export interface BlockDetail {
   recent: { kind: ToolKind; label: string }[];
 }
 
+/**
+ * The nearest turns just outside a time range, for one thread. Lanes use them
+ * to offer a jump to a lane's previous or next turn when it is out of view,
+ * including turns older than the loaded window.
+ */
+export interface LaneNeighbors {
+  /** The latest block that ended before `from` (or is the last to start before it). Null when none. */
+  prev: LaneBlock | null;
+  /** The earliest block that starts after `to`. Null when none. */
+  next: LaneBlock | null;
+}
+
 /** Realtime channel name and payload. Signals are ephemeral; reconcile on reconnect. */
 export const LANES_CHANGED = "lanes-changed";
 export interface LanesChangedSignal {
