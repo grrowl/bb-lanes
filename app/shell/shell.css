@@ -1,88 +1,867 @@
-/* Chrome around the timeline: the pane's tray, row header cells, the toolbar,
- * and the title-bar summary. Colours derive from bb's theme variables so
- * custom palettes and dark mode follow; Tailwind utilities cover the rest. */
+/*
+ * The chrome around the timeline, in upstream's language: the tray and its
+ * bar, the card, the names column's cells, the menus, and the title-bar
+ * summary. Rules that exist upstream are carried over with their values
+ * (`.ui-al` → `.lanes-tray`, `.ui-al__bar` → `.lanes-bar`, `.ui-al__agent` →
+ * `.lanes-agent`, …). What upstream lacks (filters, search, group rows, tree
+ * guides, menus) is drawn with the same tokens, type scale, radii and motion.
+ *
+ * Every colour comes from the timeline's palette: each root here also carries
+ * `.bl-theme`, so the pane reads as one component and follows bb's theme.
+ */
 
 .lanes-chrome {
-  --lanes-run: var(--timeline-accent);
-  --lanes-warn: var(--warning-text);
-  --lanes-danger: var(--destructive-text);
-  --lanes-run-wash: color-mix(in oklab, var(--lanes-run) 14%, transparent);
-  --lanes-warn-wash: color-mix(in oklab, var(--lanes-warn) 14%, transparent);
-  --lanes-danger-wash: color-mix(in oklab, var(--lanes-danger) 12%, transparent);
-  --lanes-tile-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
   letter-spacing: -0.006em;
+  color: var(--bl-text);
+  text-align: left;
   -webkit-font-smoothing: antialiased;
 }
-
-/* ----- Tones: a dot, a glyph, or a chip coloured by state ----- */
-.lanes-tone-run { --tone: var(--lanes-run); --tone-wash: var(--lanes-run-wash); }
-.lanes-tone-warn { --tone: var(--lanes-warn); --tone-wash: var(--lanes-warn-wash); }
-.lanes-tone-danger { --tone: var(--lanes-danger); --tone-wash: var(--lanes-danger-wash); }
-.lanes-dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--tone, var(--muted-foreground)); }
-.lanes-tone-warn .lanes-dot, .lanes-dot.lanes-tone-warn, .lanes-pulse { animation: lanes-pulse 1600ms ease-in-out infinite; }
-.lanes-toned { color: var(--tone); }
-
-/* ----- Avatars: a provider logo on a small tile, or initials ----- */
-.lanes-avatar {
-  display: grid; flex: none; place-items: center;
-  width: 26px; height: 26px; overflow: hidden; border-radius: 50%;
-  background: var(--muted); color: var(--muted-foreground);
-  font-size: 10px; font-weight: 500; letter-spacing: 0.3px; line-height: 1;
+.lanes-chrome *,
+.lanes-chrome *::before,
+.lanes-chrome *::after {
+  box-sizing: border-box;
 }
-.lanes-avatar[data-logo] { background: var(--card); color: var(--foreground); box-shadow: var(--lanes-tile-shadow); }
+:where(.lanes-chrome) button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.lanes-chrome :is(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: 1px;
+}
+.lanes-chrome button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.lanes-chrome kbd {
+  font: inherit;
+}
 
-/* ----- Row header cells ----- */
+/* ----- Tray, bar and card ----- */
+
+/* The pane body is upstream's tray; at full width it simply fills the pane. */
+.lanes-tray {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px;
+  background: var(--bl-tray);
+  container: lanes-tray / inline-size;
+}
+.lanes-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 10px 12px 14px;
+}
+.lanes-bar-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+/* The white card holds the lanes */
+.lanes-card {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+}
+
+.lanes-card > .bl {
+  flex: 1;
+  min-height: 0;
+}
+
+/* What is going on: upstream's summary, with a failed count in its manner. */
+.lanes-summary {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.lanes-summary > * {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.lanes-summary > [data-kind]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-run-fg);
+}
+.lanes-summary > [data-kind="needs"] {
+  color: var(--bl-warn-fg);
+}
+.lanes-summary > [data-kind="needs"]::before {
+  background: var(--bl-warn-fg);
+  animation: lanes-pulse 1600ms ease-in-out infinite;
+}
+.lanes-summary > [data-kind="failed"] {
+  color: var(--bl-danger-fg);
+}
+.lanes-summary > [data-kind="failed"]::before {
+  background: var(--bl-danger-fg);
+}
+/* In the title bar each count is a shortcut to the lanes it counts. */
+.lanes-summary > button {
+  border-radius: 4px;
+  transition: color 160ms ease;
+}
+.lanes-summary > button:hover {
+  color: var(--bl-text);
+}
+.lanes-summary > button[data-kind="needs"]:hover {
+  color: color-mix(in srgb, var(--bl-warn-fg) 80%, var(--bl-strong));
+}
+.lanes-summary > button:active {
+  opacity: 0.7;
+}
+
+/* The window: upstream's "Last 30m" pill, here also the menu of spans. */
+.lanes-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease;
+}
+.lanes-pill:hover,
+.lanes-pill[data-state="open"] {
+  color: var(--bl-strong);
+}
+.lanes-pill:active {
+  background: var(--bl-wash);
+}
+.lanes-pill[data-history] {
+  color: var(--bl-run-fg);
+}
+.lanes-chev {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: -3px;
+  color: var(--bl-muted);
+  transition: transform 200ms ease;
+}
+[data-collapsed] > .lanes-chev,
+.lanes-chev[data-collapsed] {
+  transform: rotate(-90deg);
+}
+
+/* Quiet controls on the tray: text until hovered, a pill while open. */
+.lanes-quiet {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.lanes-quiet:hover {
+  background: color-mix(in srgb, var(--bl-card) 55%, transparent);
+  color: var(--bl-strong);
+}
+.lanes-quiet:active {
+  background: var(--bl-card);
+}
+.lanes-quiet[data-state="open"] {
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  color: var(--bl-strong);
+}
+.lanes-quiet[data-icon-only] {
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+}
+.lanes-quiet > svg {
+  width: 14px;
+  height: 14px;
+}
+.lanes-quiet-label {
+  color: var(--bl-muted);
+}
+.lanes-quiet-badge {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-run-fg);
+}
+
+/* Which lanes show: a row of pills on the tray, the chosen one raised like
+ * the window pill. */
+.lanes-seg {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+.lanes-seg > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.lanes-seg > button:hover {
+  background: color-mix(in srgb, var(--bl-card) 55%, transparent);
+  color: var(--bl-text);
+}
+.lanes-seg > button:active {
+  background: var(--bl-card);
+}
+.lanes-seg > button[aria-checked="true"] {
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  color: var(--bl-strong);
+}
+.lanes-seg-count {
+  font-variant-numeric: tabular-nums;
+}
+.lanes-seg-count[data-kind="needs"] {
+  color: var(--bl-warn-fg);
+}
+.lanes-seg-count[data-kind="failed"] {
+  color: var(--bl-danger-fg);
+}
+
+/* Search: a field shaped like the pills beside it. */
+.lanes-search {
+  position: relative;
+  display: flex;
+  flex: 0 1 220px;
+  align-items: center;
+  min-width: 120px;
+  height: 22px;
+}
+.lanes-search[data-wide] {
+  flex: 1 1 auto;
+}
+.lanes-search > input {
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  padding: 0 26px 0 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-ink);
+  outline: none;
+  appearance: none;
+  transition: box-shadow 160ms ease;
+}
+.lanes-search > input::placeholder {
+  color: var(--bl-muted);
+}
+.lanes-search > input::-webkit-search-cancel-button {
+  display: none;
+}
+.lanes-chrome .lanes-search > input:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px var(--bl-ring),
+    0 0 0 3px var(--bl-focus);
+}
+.lanes-search-glyph {
+  position: absolute;
+  left: 9px;
+  width: 12px;
+  height: 12px;
+  color: var(--bl-muted);
+  pointer-events: none;
+}
+.lanes-search > kbd,
+.lanes-search > button {
+  position: absolute;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--bl-muted);
+}
+.lanes-search > kbd {
+  background: var(--bl-fill);
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.lanes-search > input:focus ~ kbd {
+  opacity: 0;
+}
+.lanes-search > button {
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+}
+.lanes-search > button:hover {
+  background: var(--bl-fill);
+  color: var(--bl-strong);
+}
+.lanes-search > button > svg {
+  width: 10px;
+  height: 10px;
+}
+
+.lanes-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+}
+.lanes-note-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-danger-fg);
+}
+.lanes-note-spin {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--bl-fill);
+  border-top-color: var(--bl-muted);
+  border-radius: 50%;
+  animation: lanes-spin 900ms linear infinite;
+}
+.lanes-note button {
+  font-weight: 500;
+  color: var(--bl-text);
+  text-decoration: underline;
+  text-decoration-color: var(--bl-rail);
+  text-underline-offset: 2px;
+}
+.lanes-note button:hover {
+  color: var(--bl-strong);
+}
+
+/* ----- Names column: upstream's agent cell ----- */
+
 /* A size container has no intrinsic width, so the cell must fill the engine's
    names cell explicitly or it collapses to its avatar. */
-.lanes-cell { position: relative; display: flex; flex: 1 1 auto; align-items: center; width: 100%; height: 100%; min-width: 0; container-type: inline-size; }
-.lanes-guide { position: absolute; pointer-events: none; background: var(--border); }
-.lanes-who { display: grid; min-width: 0; }
-@container (max-width: 96px) {
-  .lanes-who, .lanes-group-text { display: none; }
+.lanes-agent {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0 12px 0 16px;
+  container-type: inline-size;
 }
-
-/* The state tag collapses to nothing while the agent works and fades in when
- * it is free, waiting, or stuck. The label lingers while it collapses. The
- * title has priority: when the line is short the tag gives way first. */
+.lanes-avatar {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bl-fill);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.3px;
+  color: var(--bl-text);
+}
+/* A logo sits on a small white tile */
+.lanes-avatar[data-logo] {
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  color: var(--bl-ink);
+}
+.lanes-avatar > :is(svg, img, [data-icon-root]) {
+  width: 14px;
+  height: 14px;
+}
+.lanes-who {
+  display: grid;
+  min-width: 0;
+}
+/* The title has priority. A quiet tag (Idle, Queued) shows only beside a
+ * title that fits whole: otherwise it wraps onto a hidden second line. An
+ * urgent tag (Needs you, Failed) always shows, and the title truncates. */
+.lanes-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  row-gap: 8px;
+  min-width: 0;
+  height: 20px;
+  overflow: clip;
+  overflow-clip-margin: 3px;
+}
+.lanes-name-line:is([data-state="waiting"], [data-state="failed"]) {
+  flex-wrap: nowrap;
+}
+.lanes-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 3px;
+  font-weight: 500;
+  color: var(--bl-ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+a.lanes-name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--bl-rail);
+}
+.lanes-name[data-context] {
+  color: var(--bl-muted);
+}
+/* Unread: a dot on the avatar's shoulder, so a long title never hides it. */
+.lanes-avatar-slot {
+  position: relative;
+  display: grid;
+  flex: none;
+}
+.lanes-unread {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--bl-card);
+  border-radius: 50%;
+  background: var(--bl-run-fg);
+  pointer-events: none;
+}
+.lanes-model {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+}
+.lanes-model > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The state tag: collapses to nothing while the agent works, fades in when it is free or waits */
 .lanes-state {
-  display: inline-grid; flex: 0 100 auto; min-width: 0; grid-template-columns: 0fr; margin-left: 0; opacity: 0;
-  transition: grid-template-columns 320ms ease, margin-left 320ms ease, opacity 220ms ease;
+  display: inline-grid;
+  flex: none;
+  grid-template-columns: 0fr;
+  margin-left: 0;
+  opacity: 0;
+  transition:
+    grid-template-columns 320ms ease,
+    margin-left 320ms ease,
+    opacity 220ms ease;
 }
 .lanes-state[data-show] {
-  grid-template-columns: 1fr; margin-left: 6px; opacity: 1;
-  transition: grid-template-columns 320ms ease, margin-left 320ms ease, opacity 260ms ease 80ms;
+  grid-template-columns: 1fr;
+  margin-left: 6px;
+  opacity: 1;
+  transition:
+    grid-template-columns 320ms ease,
+    margin-left 320ms ease,
+    opacity 260ms ease 80ms;
 }
 .lanes-state > span {
-  min-width: 0; overflow: hidden; padding: 0 5px; border-radius: 4px;
-  background: var(--muted); color: var(--muted-foreground);
-  font-size: 11px; font-weight: 500; line-height: 16px; white-space: nowrap; text-overflow: ellipsis;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-fill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
 }
-.lanes-state[data-state="waiting"] > span { background: var(--lanes-warn-wash); color: var(--lanes-warn); }
-.lanes-state[data-state="failed"] > span { background: var(--lanes-danger-wash); color: var(--lanes-danger); }
-
-.lanes-chevron { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
-[data-collapsed] > .lanes-chevron, .lanes-chevron[data-collapsed] { transform: rotate(-90deg); }
-
-.lanes-mark { border-radius: 2px; background: var(--lanes-warn-wash); color: inherit; }
-
-/* ----- Empty and loading states: ghost lanes drawn from block shapes ----- */
-.lanes-ghost-track { position: relative; height: 22px; }
-.lanes-ghost-block { position: absolute; top: 0; bottom: 0; border-radius: 7px; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
-.lanes-ghost-block[data-tone="run"] { background: var(--lanes-run-wash); }
-.lanes-ghost-block[data-tone="warn"] { background: var(--lanes-warn-wash); }
-
-/* Upstream's summary: muted counts with a state dot; "need you" in amber, pulsing. */
-.lanes-summary {
-  display: flex; gap: 10px; min-width: 0; overflow: hidden;
-  font-size: 12px; line-height: 16px; color: var(--muted-foreground); white-space: nowrap; font-variant-numeric: tabular-nums;
+.lanes-state[data-state="waiting"] > span {
+  background: var(--bl-warn-bg);
+  color: var(--bl-warn-fg);
 }
-.lanes-summary > span { display: inline-flex; flex: none; align-items: center; gap: 6px; }
-.lanes-summary > [data-kind="needs"] { color: var(--lanes-warn); }
+.lanes-state[data-state="failed"] > span {
+  background: var(--bl-danger-bg);
+  color: var(--bl-danger-fg);
+}
 
-@keyframes lanes-pulse { 50% { opacity: 0.55; } }
-@keyframes lanes-rise { from { opacity: 0; transform: translateY(3px); } }
-.lanes-rise { animation: lanes-rise 220ms ease both; }
+/* The thread open in another pane: a run-coloured edge on its cell. */
+.lanes-agent[data-highlighted]::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--bl-run-fg);
+}
 
+/* Tree guides: hairlines from a parent's avatar to its children's. */
+.lanes-guide {
+  position: absolute;
+  width: 0;
+  border-left: 1px solid var(--bl-guide);
+  pointer-events: none;
+}
+.lanes-guide[data-elbow] {
+  height: 50%;
+  border-bottom: 1px solid var(--bl-guide);
+  border-bottom-left-radius: 5px;
+}
+.lanes-chrome,
+.lanes-agent {
+  --bl-guide: color-mix(in srgb, var(--bl-rail) 55%, var(--bl-line));
+}
+
+/* Hiding a lane's sub-threads: a small disc on the avatar's foot. */
+.lanes-disclose {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  color: var(--bl-muted);
+  opacity: 0;
+  translate: -50% 0;
+  transition:
+    opacity 160ms ease,
+    color 160ms ease;
+}
+.lanes-disclose[data-show],
+.lanes-disclose:focus-visible {
+  opacity: 1;
+}
+.lanes-disclose:hover {
+  color: var(--bl-strong);
+}
+.lanes-disclose:active {
+  background: var(--bl-wash);
+}
+.lanes-disclose > .lanes-chev {
+  width: 8px;
+  height: 8px;
+  margin: 0;
+}
+
+/* ----- Group rows: a bar for each group, on the row's quiet band ----- */
+
+.lanes-group {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0 12px 0 16px;
+  container-type: inline-size;
+}
+.lanes-group > button {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 22px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  transition: background-color 160ms ease;
+}
+.lanes-group > button:hover {
+  background: var(--bl-fill);
+}
+.lanes-group > button:active {
+  background: var(--bl-rail);
+}
+.lanes-group .lanes-chev {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+}
+.lanes-group-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: var(--bl-muted);
+}
+.lanes-group-icon > * {
+  width: 14px;
+  height: 14px;
+}
+.lanes-group-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--bl-strong);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lanes-group-detail {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--bl-muted);
+}
+/* The summary keeps what fits, in upstream's order; the rest wraps away. */
+.lanes-group .lanes-summary {
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  height: 16px;
+  gap: 0 10px;
+  overflow: clip;
+}
+
+/* Narrow names column (the avatars only): text gives way. */
+@container (max-width: 96px) {
+  .lanes-who,
+  .lanes-group-label,
+  .lanes-group-icon,
+  .lanes-group .lanes-summary,
+  .lanes-guide {
+    display: none;
+  }
+  .lanes-agent,
+  .lanes-group {
+    justify-content: center;
+    padding: 0 !important;
+  }
+  .lanes-group > button {
+    flex: none;
+    justify-content: center;
+    margin: 0;
+  }
+}
+
+/* ----- Menus: upstream's popover, as the floating list for every menu ----- */
+
+.bl-theme.lanes-menu {
+  min-width: 180px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.006em;
+  color: var(--bl-ink);
+  -webkit-font-smoothing: antialiased;
+}
+.bl-theme.lanes-menu [role^="menuitem"] {
+  gap: 8px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--bl-ink);
+}
+.bl-theme.lanes-menu [role^="menuitem"]:is([data-highlighted], :focus) {
+  background: var(--bl-wash);
+  color: var(--bl-strong);
+}
+.bl-theme.lanes-menu [role^="menuitem"]:active {
+  background: var(--bl-fill);
+}
+.bl-theme.lanes-menu [role^="menuitem"] :is(svg, [data-icon-root]) {
+  width: 14px;
+  height: 14px;
+  color: var(--bl-muted);
+}
+.bl-theme.lanes-menu [role="separator"] {
+  height: 1px;
+  margin: 4px -4px;
+  background: var(--bl-line);
+}
+.lanes-menu-label {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--bl-muted);
+}
+.lanes-menu-key {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--bl-faint);
+  font-variant-numeric: tabular-nums;
+}
+.lanes-menu-check {
+  margin-left: auto;
+  color: var(--bl-strong);
+}
+.lanes-menu-check[data-off] {
+  visibility: hidden;
+}
+
+/* ----- The sidebar row's live count ----- */
+
+.lanes-accessory {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lanes-accessory > [data-kind] {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lanes-accessory > [data-kind]::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--bl-run-fg);
+}
+.lanes-accessory > [data-kind="needs"] {
+  color: var(--bl-warn-fg);
+}
+.lanes-accessory > [data-kind="needs"]::before {
+  background: var(--bl-warn-fg);
+  animation: lanes-pulse 1600ms ease-in-out infinite;
+}
+
+.lanes-mark {
+  border-radius: 2px;
+  background: var(--bl-warn-bg);
+  color: inherit;
+}
+
+@keyframes lanes-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes lanes-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes lanes-rise {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+.lanes-rise {
+  animation: lanes-rise 180ms ease both;
+}
+
+/* Narrow trays: the running count gives way first, as upstream's does. */
+@container lanes-tray (max-width: 520px) {
+  .lanes-bar .lanes-summary [data-kind="running"] {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .lanes-chrome *, .lanes-chrome *::before, .lanes-chrome *::after { animation: none !important; transition: none !important; }
+  :is(.lanes-chrome, .lanes-menu) *,
+  :is(.lanes-chrome, .lanes-menu) *::before,
+  :is(.lanes-chrome, .lanes-menu) *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

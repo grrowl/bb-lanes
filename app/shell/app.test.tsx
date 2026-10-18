@@ -159,18 +159,26 @@ describe("Lanes nav panel", () => {
 });
 
 describe("Lanes chrome", () => {
-  it("summarises live work in the title bar and switches span for the body", async () => {
+  it("summarises live work in the title bar, once, and leaves the window to the body", async () => {
     const app = await loadApp();
     const header = renderSlot({ component: app.navPanels[0]!.headerContent! }, { subPath: "" }, {
       pluginId: "lanes-test-header",
       sidebarThreads,
     });
-    expect(header.getByText("2 running")).toBeTruthy();
-    expect(header.getByText("1 need you")).toBeTruthy();
-    const hour = header.getByRole("radio", { name: "Last hour" });
-    fireEvent.click(hour);
-    expect(hour.getAttribute("aria-checked")).toBe("true");
+    expect(header.getByRole("button", { name: "2 running" })).toBeTruthy();
+    expect(header.getByRole("button", { name: "1 need you" })).toBeTruthy();
+    expect(header.queryByRole("button", { name: /^Window:/ })).toBeNull();
     header.lifecycle.unmount();
+
+    const body = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
+      pluginId: "lanes-test-header",
+      sidebarThreads,
+      rpc: rpc(),
+    });
+    await body.findByText("Spec the pane");
+    expect(body.getByRole("button", { name: "Window: Last 15m" })).toBeTruthy();
+    expect(body.container.querySelector(".lanes-bar .lanes-summary")).toBeNull();
+    body.lifecycle.unmount();
   });
 
   it("shows a tiny live count on the sidebar row", async () => {
@@ -195,7 +203,9 @@ describe("Lanes chrome", () => {
     expect(panel.queryByText("Deploy to staging")).toBeNull();
     const call = panel.inspection.rpcCalls.find((entry) => entry.method === "lanes_window");
     expect((call?.input as { threadIds?: string[] }).threadIds).toContain("worker");
-    expect(within(panel.container).getAllByRole("radio", { name: /Last/ }).length).toBe(5);
+    // Beside a thread there is no title bar, so the bar leads with the team's own summary.
+    expect(within(panel.container).getByRole("button", { name: "Window: Last 15m" })).toBeTruthy();
+    expect(panel.container.querySelector(".lanes-bar .lanes-summary")?.textContent).toBe("2 running");
     panel.lifecycle.unmount();
   });
 });

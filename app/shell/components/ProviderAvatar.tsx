@@ -10,18 +10,27 @@ export function initials(name: string): string {
   return (letters || "?").slice(0, 2).toUpperCase();
 }
 
-/** The provider's logo on a small tile, or initials when it has no artwork. */
+/**
+ * The provider's logo on a small white tile, or initials on a quiet disc
+ * when it has no artwork. `small` is the bare 14px logo, for group rows.
+ */
 export function ProviderAvatar({
   provider,
   fallbackName,
+  size = "lane",
 }: {
   provider: ProviderInfo | undefined;
   fallbackName: string;
+  size?: "lane" | "small";
 }) {
-  if (provider !== undefined && (provider.logoUrl !== null || provider.icon !== undefined)) {
+  const hasLogo = provider !== undefined && (provider.logoUrl !== null || provider.icon !== undefined);
+  if (size === "small") {
+    return hasLogo ? <ProviderIcon providerKind="agent" provider={provider} /> : null;
+  }
+  if (hasLogo) {
     return (
       <span className="lanes-avatar" data-logo="">
-        <ProviderIcon providerKind="agent" provider={provider} className="size-3.5" />
+        <ProviderIcon providerKind="agent" provider={provider} />
       </span>
     );
   }

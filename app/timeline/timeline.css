@@ -7,28 +7,48 @@
  * collapsed-group strip, clusters, panning, the jump pill, the resize handle,
  * sticky titles) is drawn with the same tokens, radii and motion.
  *
- * `.bl-theme` carries the palette alone, so the shell's tray and card can
- * share it. Dark mode follows `.dark` or `data-theme="dark"` on an ancestor.
+ * `.bl-theme` carries the palette alone, so the shell's tray, bar, cells and
+ * menus share it. Dark mode follows `.dark` or `data-theme="dark"` on an
+ * ancestor, which is how bb itself switches theme.
+ *
+ * Neutrals follow bb's `--canvas`, so a tinted bb theme tints every surface
+ * coherently: each `--bl-host-*` mixes the canvas towards black (light) or
+ * white (dark) by exactly the amount that turns bb's default canvas into
+ * upstream's value. Outside bb `--canvas` is unset, a `--bl-host-*` is then
+ * invalid, and the upstream literal after it applies. State colours are
+ * upstream's own and stay literal.
  */
 
 /* Colors and motion as variables – override them on .bl */
 .bl,
 .bl-theme {
-  --bl-tray: #f0f0f0;
-  --bl-card: #ffffff;
-  --bl-strong: #171717;
-  --bl-ink: #171717;
-  --bl-text: #6b6b6b;
-  --bl-muted: #8a8a8a;
-  --bl-faint: #b8b8b8;
-  --bl-line: #ececec;
-  --bl-rail: #c4c4c8;
-  --bl-wash: #f6f6f6;
-  --bl-fill: #ececec;
-  --bl-done: #f2f2f3;
-  --bl-solid: #171717;
-  --bl-on-solid: #ffffff;
-  --bl-solid-hover: #33333a;
+  --bl-host-tray: color-mix(in srgb, var(--canvas), #000 5.882%);
+  --bl-host-card: var(--canvas);
+  --bl-host-ink: color-mix(in srgb, var(--canvas), #000 90.98%);
+  --bl-host-text: color-mix(in srgb, var(--canvas), #000 58.04%);
+  --bl-host-muted: color-mix(in srgb, var(--canvas), #000 45.88%);
+  --bl-host-faint: color-mix(in srgb, var(--canvas), #000 27.84%);
+  --bl-host-line: color-mix(in srgb, var(--canvas), #000 7.451%);
+  --bl-host-rail: color-mix(in srgb, var(--canvas), #000011 23.14%);
+  --bl-host-wash: color-mix(in srgb, var(--canvas), #000 3.529%);
+  --bl-host-done: color-mix(in srgb, var(--canvas), #000014 5.098%);
+  --bl-host-solid-hover: color-mix(in srgb, var(--canvas), #000009 80%);
+  --bl-tray: var(--bl-host-tray, #f0f0f0);
+  --bl-card: var(--bl-host-card, #ffffff);
+  --bl-strong: var(--bl-host-ink, #171717);
+  --bl-ink: var(--bl-host-ink, #171717);
+  --bl-text: var(--bl-host-text, #6b6b6b);
+  --bl-muted: var(--bl-host-muted, #8a8a8a);
+  --bl-faint: var(--bl-host-faint, #b8b8b8);
+  --bl-line: var(--bl-host-line, #ececec);
+  --bl-rail: var(--bl-host-rail, #c4c4c8);
+  --bl-wash: var(--bl-host-wash, #f6f6f6);
+  --bl-fill: var(--bl-host-line, #ececec);
+  --bl-done: var(--bl-host-done, #f2f2f3);
+  --bl-solid: var(--bl-host-ink, #171717);
+  --bl-on-solid: var(--bl-host-card, #ffffff);
+  --bl-solid-hover: var(--bl-host-solid-hover, #33333a);
+  --bl-ring: var(--bl-host-line, #ececec);
   --bl-run-bg: rgba(47, 107, 255, 0.1);
   --bl-run-fg: #2f6bff;
   --bl-run-edge: rgba(47, 107, 255, 0.55);
@@ -37,9 +57,11 @@
   --bl-danger-bg: #fdecea;
   --bl-danger-fg: #c2331f;
   --bl-focus: rgba(23, 23, 23, 0.22);
-  --bl-shadow: 0 0 0 1px #ececec, 0 1px 2px rgba(0, 0, 0, 0.04);
-  --bl-pop: 0 0 0 1px #ececec, 0 16px 36px -12px rgba(0, 0, 0, 0.22);
+  --bl-shadow: 0 0 0 1px var(--bl-ring), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --bl-pop: 0 0 0 1px var(--bl-ring), 0 16px 36px -12px rgba(0, 0, 0, 0.22);
   --bl-shimmer: rgba(255, 255, 255, 0.55);
+  /* The spark beside a title on the tray. */
+  --bl-spark: rgba(0, 96, 226, 0.765);
   /* The dark tooltip, and the small dark chips that share its look. */
   --bl-tip-bg: rgba(23, 23, 23, 0.92);
   --bl-tip-text: rgba(255, 255, 255, 0.86);
@@ -60,8 +82,14 @@
 
 /* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html> */
 :where(.dark, [data-theme="dark"]) :is(.bl, .bl-theme) {
-  --bl-tray: #111113;
-  --bl-card: #19191b;
+  --bl-host-tray: color-mix(in srgb, var(--canvas), #000 19.05%);
+  --bl-host-card: color-mix(in srgb, var(--canvas), #fff 1.71%);
+  --bl-host-ring: color-mix(in srgb, var(--canvas), #fff 8.97%);
+  --bl-host-on-solid: color-mix(in srgb, var(--canvas), #000 4.8%);
+  --bl-host-solid-hover: color-mix(in srgb, var(--canvas), #fff 82.5%);
+  --bl-tray: var(--bl-host-tray, #111113);
+  --bl-card: var(--bl-host-card, #19191b);
+  --bl-ring: var(--bl-host-ring, #2a2a2e);
   --bl-strong: #ffffff;
   --bl-ink: rgba(255, 255, 255, 0.9);
   --bl-text: rgba(255, 255, 255, 0.62);
@@ -73,8 +101,8 @@
   --bl-fill: rgba(255, 255, 255, 0.08);
   --bl-done: rgba(255, 255, 255, 0.06);
   --bl-solid: rgba(255, 255, 255, 0.92);
-  --bl-on-solid: #141416;
-  --bl-solid-hover: #d6d6da;
+  --bl-on-solid: var(--bl-host-on-solid, #141416);
+  --bl-solid-hover: var(--bl-host-solid-hover, #d6d6da);
   --bl-run-bg: #0077ff3a;
   --bl-run-fg: #70b8ff;
   --bl-run-edge: rgba(112, 184, 255, 0.6);
@@ -83,8 +111,8 @@
   --bl-danger-bg: #ff35232b;
   --bl-danger-fg: #ff977d;
   --bl-focus: rgba(91, 154, 255, 0.45);
-  --bl-shadow: 0 0 0 1px #2a2a2e, 0 1px 2px rgba(0, 0, 0, 0.3);
-  --bl-pop: 0 0 0 1px #2a2a2e, 0 16px 36px -12px rgba(0, 0, 0, 0.6);
+  --bl-shadow: 0 0 0 1px var(--bl-ring), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bl-pop: 0 0 0 1px var(--bl-ring), 0 16px 36px -12px rgba(0, 0, 0, 0.6);
   --bl-shimmer: rgba(255, 255, 255, 0.12);
   /* Dark mode: the tooltip turns light, so it stands out from the dark card */
   --bl-tip-bg: rgba(250, 250, 250, 0.94);
@@ -1188,6 +1216,25 @@
   bottom: 0;
   border-radius: 8px;
   background: var(--bl-done);
+}
+.bl-empty-block[data-state="running"] {
+  background: var(--bl-run-bg);
+  box-shadow: inset -2px 0 0 var(--bl-run-edge);
+}
+.bl-empty-block[data-state="waiting"] {
+  background: var(--bl-warn-bg);
+}
+/* Loading: the ghosts alone, quiet and shimmering like a running block. */
+.bl-empty[data-loading] .bl-empty-ghosts {
+  -webkit-mask-image: linear-gradient(to bottom, #000 30%, transparent 95%);
+  mask-image: linear-gradient(to bottom, #000 30%, transparent 95%);
+}
+.bl-empty[data-loading] :is(.bl-empty-block, .bl-empty-avatar, .bl-empty-text) {
+  background:
+    linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat,
+    var(--bl-done);
+  box-shadow: none;
+  animation: bl-shimmer 2200ms ease-in-out infinite;
 }
 .bl-empty-curve {
   position: absolute;

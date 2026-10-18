@@ -15,14 +15,16 @@ export interface SpanPreset {
   key: string;
   /** Words for the empty state and accessible names. */
   long: string;
+  /** How the window menu lists it. */
+  name: string;
 }
 
 export const SPAN_PRESETS: readonly SpanPreset[] = [
-  { ms: 15 * MINUTE, label: "15m", key: "1", long: "15 minutes" },
-  { ms: HOUR, label: "1h", key: "2", long: "hour" },
-  { ms: 4 * HOUR, label: "4h", key: "3", long: "4 hours" },
-  { ms: DAY, label: "1d", key: "4", long: "day" },
-  { ms: 7 * DAY, label: "7d", key: "5", long: "7 days" },
+  { ms: 15 * MINUTE, label: "15m", key: "1", long: "15 minutes", name: "15 minutes" },
+  { ms: HOUR, label: "1h", key: "2", long: "hour", name: "1 hour" },
+  { ms: 4 * HOUR, label: "4h", key: "3", long: "4 hours", name: "4 hours" },
+  { ms: DAY, label: "1d", key: "4", long: "day", name: "1 day" },
+  { ms: 7 * DAY, label: "7d", key: "5", long: "7 days", name: "7 days" },
 ];
 
 export function clampSpan(ms: number): number {
@@ -59,4 +61,19 @@ export function formatDuration(ms: number): string {
 /** Human span for sentences: "Last 15m" style labels use `formatDuration`. */
 export function describeSpan(ms: number): string {
   return presetForSpan(ms)?.long ?? formatDuration(ms);
+}
+
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+const dayTimeFormat = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+const dateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
+/**
+ * The stretch of time on screen when the window is not following the clock:
+ * "2:05 – 2:20 PM", "Tue 9:00 PM – Wed 1:00 AM", or "Oct 11 – 18".
+ */
+export function formatWindow(end: number, span: number): string {
+  const start = end - span;
+  const sameDay = new Date(start).toDateString() === new Date(end).toDateString();
+  const format = span >= 2 * DAY ? dateFormat : sameDay ? timeFormat : dayTimeFormat;
+  return format.formatRange(start, end);
 }
