@@ -32,17 +32,15 @@ function usePopoverPlacement(
     const follow = () => {
       const track = controller.width;
       if (track <= 0) return;
-      const width = el.offsetWidth;
       const f0 = controller.fractionOf(block.start);
       const f1 = controller.fractionOf(block.end ?? controller.clock.read());
       if (align === "center") {
-        // Centred over the visible part of the block, kept clear of the edges.
-        const centre = ((clamp(f0, 0, 1) + clamp(f1, 0, 1)) / 2) * track;
-        const left = clamp(centre, Math.min(track / 2, width / 2 + 4), Math.max(track / 2, track - width / 2 - 4));
-        el.style.left = `${left}px`;
+        // Centred over the visible part of the block, kept between 14% and 86% of the track, as upstream does.
+        const centre = (clamp(f0, 0, 1) + clamp(f1, 0, 1)) / 2;
+        el.style.left = `${clamp(centre, 0.14, 0.86) * 100}%`;
       } else {
         // Right-aligned to where the block ends (now, for a waiting turn).
-        const right = clamp((1 - f1) * track, 0, Math.max(0, track - width));
+        const right = clamp((1 - f1) * track, 0, Math.max(0, track - el.offsetWidth));
         el.style.right = `${right}px`;
       }
     };

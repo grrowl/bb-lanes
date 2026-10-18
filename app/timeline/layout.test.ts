@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { LaneBlock, LaneHandoff } from "../../shared/model";
 import type { Row } from "../../shared/view";
 import {
-  CONNECTOR_PX,
   activityStrip,
   blocksInRange,
   handoffCurves,
@@ -213,40 +212,23 @@ describe("hand-off curves", () => {
 });
 
 describe("hand-off paths", () => {
-  // 1000 units across a 1000px track: one unit per pixel.
-  const numbers = (d: string) => d.match(/-?\d+(\.\d+)?/g)!.map(Number);
-
-  it("draws the reference's cubic when the ends are far apart", () => {
-    const d = handoffPath(100, 24, 300, 72, 1);
-    expect(d).toBe("M 100 24 C 200 24, 200 72, 300 72");
+  it("draws the reference's cubic, pulled by half the distance", () => {
+    expect(handoffPath(100, 24, 300, 72)).toBe("M 100 24 C 200 24, 200 72, 300 72");
   });
 
-  it("pulls short curves at least 24px", () => {
-    expect(handoffPath(100, 24, 140, 72, 1)).toBe("M 100 24 C 124 24, 116 72, 140 72");
+  it("pulls short curves at least 24 units, as upstream does", () => {
+    expect(handoffPath(100, 24, 140, 72)).toBe("M 100 24 C 124 24, 116 72, 140 72");
   });
 
-  it("turns near-instant hand-offs into a connector with rounded elbows", () => {
-    const d = handoffPath(100, 24, 110, 72, 1);
-    expect(d.startsWith("M 100 24 V 64 Q 100 72, 108 72")).toBe(true);
-    expect(d.endsWith("H 110")).toBe(true);
-    expect(110 - 100).toBeLessThan(CONNECTOR_PX);
-  });
-
-  it("runs the connector just left of a target that starts at the same moment", () => {
-    const d = handoffPath(100, 24, 100, 120, 1);
-    const [x0, y0] = numbers(d);
-    expect([x0, y0]).toEqual([100, 24]);
-    // Left of the target by one elbow radius, arriving horizontally on its start.
-    expect(d).toContain("V 112");
-    expect(d.endsWith("Q 92 120, 100 120")).toBe(true);
+  it("draws a near-instant hand-off as a soft S that lands head-on", () => {
+    expect(handoffPath(100, 24, 100, 120)).toBe("M 100 24 C 124 24, 76 120, 100 120");
   });
 
   it("goes up as well as down", () => {
-    expect(handoffPath(100, 120, 110, 24, 1)).toContain("V 32 Q 100 24, 108 24");
+    expect(handoffPath(100, 120, 300, 24)).toBe("M 100 120 C 200 120, 200 24, 300 24");
   });
 
-  it("keeps elbows round on a stretched SVG", () => {
-    // Two units per pixel: horizontal radius doubles in units, vertical stays 8px.
-    expect(handoffPath(200, 24, 220, 72, 2)).toContain("V 64 Q 200 72, 216 72");
+  it("is a straight line within one row", () => {
+    expect(handoffPath(100, 24, 300, 24)).toBe("M 100 24 H 300");
   });
 });

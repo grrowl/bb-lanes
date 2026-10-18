@@ -9,7 +9,6 @@ import type { Curve, RowLayout } from "./layout";
 import { handoffPath } from "./layout";
 import { layerPercent } from "./time";
 
-const MIN_PULL_PX = 24;
 const STUB_PX = 44;
 
 export interface CurvesProps {
@@ -29,7 +28,7 @@ export const Curves = memo(function Curves({ curves, layout, anchor, span, width
     const style = HANDOFF_LINES[curve.handoff.kind];
     const color = style.color;
     if (curve.from.row !== null && curve.to.row !== null) {
-      const d = handoffPath(x(curve.from.t), yOf(curve.from.row), x(curve.to.t), yOf(curve.to.row), unitsPerPx, MIN_PULL_PX);
+      const d = handoffPath(x(curve.from.t), yOf(curve.from.row), x(curve.to.t), yOf(curve.to.row));
       return { curve, style, color, d, stub: null };
     }
     // One end is not shown: a short tail that fades towards the missing lane.

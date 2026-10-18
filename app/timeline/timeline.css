@@ -258,6 +258,8 @@
   bottom: 0;
   width: 0;
   height: 0;
+  /* Upstream's label sits beside its tick's 0.5px line. */
+  border-left: 0.5px solid transparent;
 }
 .bl-tick-label {
   position: absolute;
@@ -870,7 +872,7 @@
   display: grid;
   gap: 4px;
   width: max-content;
-  max-width: 250px;
+  max-width: 230px;
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--bl-tip-bg);

@@ -20,9 +20,11 @@
   text-align: left;
   -webkit-font-smoothing: antialiased;
 }
-.lanes-chrome *,
-.lanes-chrome *::before,
-.lanes-chrome *::after {
+/* Zero specificity, so the engine's own box rules inside the card still win. */
+.lanes-chrome,
+:where(.lanes-chrome) *,
+:where(.lanes-chrome) *::before,
+:where(.lanes-chrome) *::after {
   box-sizing: border-box;
 }
 :where(.lanes-chrome) button {
@@ -35,6 +37,11 @@
   text-align: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+/* Upstream's buttons keep the browser's letter spacing; the shell's controls
+ * read as text on the tray, so they inherit it like upstream's pill. */
+:is(.lanes-pill, .lanes-quiet, .lanes-seg > button, .lanes-summary > button, .lanes-group > button, .lanes-search > button) {
+  letter-spacing: inherit;
 }
 .lanes-chrome :is(button, a, input, [tabindex]):focus-visible {
   outline: 2px solid var(--bl-focus);
@@ -104,7 +111,6 @@
   line-height: 16px;
   color: var(--bl-muted);
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 .lanes-summary > * {
   display: inline-flex;
@@ -440,7 +446,6 @@
   background: var(--bl-fill);
   font-size: 10px;
   font-weight: 500;
-  line-height: 1;
   letter-spacing: 0.3px;
   color: var(--bl-text);
 }

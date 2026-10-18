@@ -339,7 +339,8 @@ export class ViewController {
   kick(): void {
     if (this.stopped) return;
     const animating = this.motion !== null || this.overscroll > 0;
-    if (this.raf === 0 && (animating || (this.view.live && !this.reducedMotion))) {
+    const sliding = this.view.live && !this.reducedMotion && this.clock.rate > 0;
+    if (this.raf === 0 && (animating || sliding)) {
       this.raf = requestAnimationFrame(this.tick);
     }
     if (this.idleTimer === 0) {

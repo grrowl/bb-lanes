@@ -404,41 +404,21 @@ export function handoffCurves(
   return curves;
 }
 
-/** Below this horizontal distance a hand-off is drawn as a connector, not an S-curve. */
-export const CONNECTOR_PX = 36;
-/** Radius of a connector's rounded elbows. */
-export const ELBOW_PX = 8;
+/** Upstream's least pull on a curve's ends, in viewBox units (tenths of a percent of the track). */
+export const MIN_PULL = 24;
 
 /**
- * The path for a hand-off from (x1, y1) to (x2, y2). x is in viewBox units
- * (`unitsPerPx` of them per pixel, the SVG is stretched horizontally), y in px.
- *
- * Far apart, it is the reference's cubic: horizontal tangents at both ends,
- * pulled by half the distance (at least `minPullPx`). Close together (spawns
- * are near-instant) an S would squash, so it becomes a connector: down from
- * the sender's moment, round a soft elbow, and into the target's start. When
- * the target starts at or before that moment the vertical runs just left of
- * it, so the line still arrives head-on. Either way the last segment is
- * horizontal, which is where the arrow cap points.
+ * The path for a hand-off from (x1, y1) to (x2, y2), in the curves' viewBox:
+ * x in tenths of a percent of the track, y in px. It is upstream's cubic,
+ * `M x1 y1 C x1+s y1, x2-s y2, x2 y2` with `s = max(24, |x2 - x1| / 2)`:
+ * horizontal at both ends, so a line leaves its sender heading on and lands
+ * on the target's start head-on, where the arrow cap points. A near-instant
+ * hand-off (a spawn) becomes a soft S between the two lanes.
  */
-export function handoffPath(x1: number, y1: number, x2: number, y2: number, unitsPerPx: number, minPullPx = 24): string {
-  const dy = y2 - y1;
-  const dxPx = (x2 - x1) / unitsPerPx;
-  if (Math.abs(dy) < 0.5) return `M ${round(x1)} ${round(y1)} H ${round(x2)}`;
-  if (dxPx >= CONNECTOR_PX) {
-    const pull = Math.max(minPullPx * unitsPerPx, (x2 - x1) / 2);
-    return `M ${round(x1)} ${round(y1)} C ${round(x1 + pull)} ${round(y1)}, ${round(x2 - pull)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
-  }
-  const r = Math.min(ELBOW_PX, Math.abs(dy) / 2);
-  const rx = r * unitsPerPx;
-  const sy = Math.sign(dy);
-  const xv = Math.min(x1, x2 - rx);
-  let d = `M ${round(x1)} ${round(y1)}`;
-  // Leaving leftwards first happens under the sender's block, out of sight.
-  if (x1 - xv > 1e-6) d += ` Q ${round(xv)} ${round(y1)}, ${round(xv)} ${round(y1 + sy * r)}`;
-  d += ` V ${round(y2 - sy * r)} Q ${round(xv)} ${round(y2)}, ${round(xv + rx)} ${round(y2)}`;
-  if (x2 - (xv + rx) > 1e-6) d += ` H ${round(x2)}`;
-  return d;
+export function handoffPath(x1: number, y1: number, x2: number, y2: number): string {
+  if (Math.abs(y2 - y1) < 0.5) return `M ${round(x1)} ${round(y1)} H ${round(x2)}`;
+  const s = Math.max(MIN_PULL, Math.abs(x2 - x1) / 2);
+  return `M ${round(x1)} ${round(y1)} C ${round(x1 + s)} ${round(y1)}, ${round(x2 - s)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
 }
 
 function round(n: number): number {
