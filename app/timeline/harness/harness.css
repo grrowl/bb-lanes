@@ -78,319 +78,46 @@ body {
   padding: 0 12px 12px;
 }
 
-/* ----- The reference's tray, bar and card ----- */
+/* ----- The pane: the shell's tray, filling the stage ----- */
 
-.hx-tray {
-  display: flex;
+.hx-pane {
   flex: 1;
-  flex-direction: column;
-  min-height: 0;
   max-width: 100%;
-  padding: 4px;
   border-radius: 20px;
-  background: var(--bl-tray);
-  font-size: 14px;
-  line-height: 20px;
-  letter-spacing: -0.006em;
-  color: var(--bl-text);
-  container-type: inline-size;
 }
-.hx-up-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 10px 10px 12px 14px;
-}
-.hx-up-spark {
+/* The spark and title stand in for bb's title bar; upstream's values. */
+.hx-spark {
   display: grid;
   flex: none;
   place-items: center;
   width: 16px;
-  color: rgba(0, 96, 226, 0.765);
+  color: var(--bl-spark);
 }
-.hx-up-title {
+.hx-title {
   font-weight: 600;
   color: var(--bl-strong);
   white-space: nowrap;
 }
-.hx-up-summary {
-  display: flex;
-  flex: 1;
-  gap: 12px;
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--bl-muted);
-  white-space: nowrap;
-}
-.hx-up-summary span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.hx-up-summary span::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--bl-run-fg);
-}
-.hx-up-summary [data-kind="needs"] {
-  color: var(--bl-warn-fg);
-}
-.hx-up-summary [data-kind="needs"]::before {
-  background: var(--bl-warn-fg);
-  animation: bl-pulse 1600ms ease-in-out infinite;
-}
-.hx-up-window {
-  flex: none;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--bl-card);
-  box-shadow: var(--bl-shadow);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  color: var(--bl-text);
-}
-.hx-card {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  border-radius: 16px;
-  background: var(--bl-card);
-  box-shadow: var(--bl-shadow);
-}
 
-/* ----- The reference's agent cell, as the shell's header ----- */
+/* ----- Parity: upstream's demo page (reference/affectui-agent-lanes/live) ----- */
 
-.hx-agent {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  padding: 0 12px 0 16px;
-}
-.hx-agent[data-depth="1"] {
-  padding-left: 34px;
-}
-.hx-agent[data-depth="2"] {
-  padding-left: 52px;
-}
-.hx-guide {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 28.5px;
-  width: 11px;
-  border-left: 1px solid var(--bl-line);
-}
-.hx-guide[data-last] {
-  bottom: 50%;
-  border-bottom: 1px solid var(--bl-line);
-  border-bottom-left-radius: 6px;
-}
-.hx-guide:not([data-last])::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 11px;
-  border-top: 1px solid var(--bl-line);
-}
-.hx-avatar {
+.hx-parity {
   display: grid;
-  flex: none;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: var(--bl-fill);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  color: var(--bl-text);
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 48px 16px;
+  background: #fafafa;
 }
-/* A logo sits on a small white tile */
-.hx-avatar[data-logo] {
-  background: var(--bl-card);
-  box-shadow: var(--bl-shadow);
+.dark .hx-parity {
+  background: #0c0c0d;
 }
-.hx-avatar > svg {
-  width: 14px;
-  height: 14px;
-}
-.hx-who {
-  display: grid;
-  min-width: 0;
-}
-.hx-name {
-  overflow: hidden;
-  font-weight: 500;
-  color: var(--bl-ink);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.hx-name-line {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.hx-model {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--bl-muted);
-  white-space: nowrap;
-}
-.hx-model-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-[data-density="compact"] .hx-model {
-  display: none;
-}
-/* The state tag: collapses to nothing while the agent works, fades in when it is free or waits */
-.hx-state {
-  display: inline-grid;
-  flex: none;
-  grid-template-columns: 0fr;
-  margin-left: 0;
-  opacity: 0;
-  transition:
-    grid-template-columns 320ms ease,
-    margin-left 320ms ease,
-    opacity 220ms ease;
-}
-.hx-state[data-show] {
-  grid-template-columns: 1fr;
-  margin-left: 6px;
-  opacity: 1;
-  transition:
-    grid-template-columns 320ms ease,
-    margin-left 320ms ease,
-    opacity 260ms ease 80ms;
-}
-.hx-state > span {
-  min-width: 0;
-  overflow: hidden;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--bl-fill);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
-  color: var(--bl-text);
-  white-space: nowrap;
-}
-.hx-who[data-state="waiting"] .hx-state > span {
-  background: var(--bl-warn-bg);
-  color: var(--bl-warn-fg);
-}
-.hx-who[data-state="failed"] .hx-state > span {
-  background: var(--bl-danger-bg);
-  color: var(--bl-danger-fg);
-}
-
-.hx-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.hx-parity > .lanes-tray {
   width: 100%;
-  height: 100%;
-  padding: 0 12px 0 16px;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
+  max-width: 760px;
+  height: auto;
+  border-radius: 20px;
 }
-.hx-chev {
+.hx-parity .lanes-card {
   flex: none;
-  width: 12px;
-  height: 12px;
-  color: var(--bl-muted);
-  transition: transform 200ms ease;
-}
-.hx-group[aria-expanded="false"] .hx-chev {
-  transform: rotate(-90deg);
-}
-.hx-group-label {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
-  color: var(--bl-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.hx-group-counts {
-  display: inline-flex;
-  flex: none;
-  gap: 8px;
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--bl-muted);
-  font-variant-numeric: tabular-nums;
-}
-.hx-group-counts span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.hx-group-counts [data-kind]::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.hx-group-counts [data-kind="running"] {
-  color: var(--bl-run-fg);
-}
-.hx-group-counts [data-kind="running"]::before {
-  background: var(--bl-run-fg);
-}
-.hx-group-counts [data-kind="needs"] {
-  color: var(--bl-warn-fg);
-}
-.hx-group-counts [data-kind="needs"]::before {
-  background: var(--bl-warn-fg);
-}
-
-/* Narrow containers: the names column shrinks to the avatars */
-@container (max-width: 96px) {
-  .hx-who,
-  .hx-group-label,
-  .hx-group-counts,
-  .hx-guide {
-    display: none;
-  }
-  .hx-agent,
-  .hx-agent[data-depth] {
-    justify-content: center;
-    padding: 0;
-  }
-  .hx-group {
-    justify-content: center;
-    padding: 0;
-  }
-}
-@container (max-width: 520px) {
-  .hx-up-summary [data-kind="running"] {
-    display: none;
-  }
 }

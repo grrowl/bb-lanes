@@ -36,12 +36,16 @@ export async function sideBySide(browser, out, panels, { dark = false } = {}) {
     )
     .join("");
   await page.setContent(`<style>
-    body{margin:0;display:flex;gap:16px;padding:16px;background:${dark ? "#000" : "#e9e9ec"};font:600 22px/1.2 system-ui;color:${dark ? "#bbb" : "#444"}}
+    body{margin:0;display:inline-flex;align-items:flex-start;gap:16px;padding:16px;background:${dark ? "#000" : "#e9e9ec"};font:600 22px/1.2 system-ui;color:${dark ? "#bbb" : "#444"}}
     figure{margin:0}figcaption{padding:4px 4px 10px}img{display:block;width:auto;border-radius:8px}
   </style>${cells}`);
-  await page.waitForLoadState("load");
-  const size = await page.evaluate(() => ({ width: document.body.scrollWidth, height: document.body.scrollHeight }));
+  // Measure only once every image has decoded, or the capture repeats its top.
+  await page.evaluate(() => Promise.all([...document.images].map((image) => image.decode())));
+  const size = await page.evaluate(() => {
+    const box = document.body.getBoundingClientRect();
+    return { width: Math.ceil(box.width), height: Math.ceil(box.height) };
+  });
   await page.setViewportSize(size);
-  await page.screenshot({ path: out, fullPage: true });
+  await page.screenshot({ path: out });
   await page.close();
 }

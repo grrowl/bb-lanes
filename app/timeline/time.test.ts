@@ -75,12 +75,15 @@ describe("pan and zoom", () => {
 describe("ticks", () => {
   it("adapts the step to the span and the width", () => {
     expect(chooseTickStep(15 * MINUTE, 1600)).toBe(MINUTE);
-    expect(chooseTickStep(15 * MINUTE, 1200)).toBe(2 * MINUTE);
+    expect(chooseTickStep(15 * MINUTE, 1200)).toBe(MINUTE);
     expect(chooseTickStep(HOUR, 1200)).toBe(5 * MINUTE);
-    expect(chooseTickStep(4 * HOUR, 1200)).toBe(30 * MINUTE);
+    expect(chooseTickStep(4 * HOUR, 1200)).toBe(15 * MINUTE);
     expect(chooseTickStep(DAY, 1200)).toBe(2 * HOUR);
     expect(chooseTickStep(7 * DAY, 1200)).toBe(12 * HOUR);
-    expect(chooseTickStep(15 * MINUTE, 480)).toBe(5 * MINUTE);
+    expect(chooseTickStep(15 * MINUTE, 480)).toBe(2 * MINUTE);
+    // Upstream's own card: 30 minutes over a 568px track ticks every 5m, as upstream's does.
+    expect(chooseTickStep(30 * MINUTE, 568)).toBe(5 * MINUTE);
+    expect(chooseTickStep(30 * MINUTE, 428)).toBe(5 * MINUTE);
   });
 
   it("labels live ticks by age with a real minus sign", () => {

@@ -60,13 +60,15 @@ export function writePreferences(key: string, preferences: Preferences): void {
 }
 
 /**
- * The names column width for a pane `paneWidth` px wide: roomy enough for a
- * full thread title on a full pane, narrower on small panes, and never more
- * than half the pane even when someone dragged it wider.
+ * The names column width for a pane `paneWidth` px wide. Upstream's 168px
+ * suits its 760px card. Real thread titles are longer, so titles get 120px
+ * plus 18% of the pane, from 168px up to 320px: about 220px in a side panel
+ * and 300px in a full pane, which holds most titles whole. It is never more
+ * than half the pane, even when someone dragged it wider.
  */
 export function namesColumnWidth(paneWidth: number, override: number | null): number {
   const pane = Number.isFinite(paneWidth) ? paneWidth : 1_200;
   const ceiling = Math.max(NAMES_WIDTH_MIN, Math.min(NAMES_WIDTH_MAX, Math.round(pane / 2)));
-  const preferred = override ?? Math.min(272, Math.max(168, Math.round(pane * 0.24)));
+  const preferred = override ?? Math.min(320, Math.max(168, Math.round(120 + pane * 0.18)));
   return Math.min(ceiling, Math.max(NAMES_WIDTH_MIN, preferred));
 }

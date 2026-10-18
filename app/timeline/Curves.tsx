@@ -6,10 +6,9 @@
 import { memo } from "react";
 import { HANDOFF_LINES, type LineCap } from "../../shared/view";
 import type { Curve, RowLayout } from "./layout";
-import { handoffPath } from "./layout";
+import { edgeLandingPath, handoffPath } from "./layout";
 import { layerPercent } from "./time";
 
-const MIN_PULL_PX = 24;
 const STUB_PX = 44;
 
 export interface CurvesProps {
@@ -29,7 +28,10 @@ export const Curves = memo(function Curves({ curves, layout, anchor, span, width
     const style = HANDOFF_LINES[curve.handoff.kind];
     const color = style.color;
     if (curve.from.row !== null && curve.to.row !== null) {
-      const d = handoffPath(x(curve.from.t), yOf(curve.from.row), x(curve.to.t), yOf(curve.to.row), unitsPerPx, MIN_PULL_PX);
+      const y1 = yOf(curve.from.row);
+      const d = curve.to.midTurn
+        ? edgeLandingPath(x(curve.from.t), y1, x(curve.to.t), landingY(layout, curve.to.row, y1))
+        : handoffPath(x(curve.from.t), y1, x(curve.to.t), yOf(curve.to.row));
       return { curve, style, color, d, stub: null };
     }
     // One end is not shown: a short tail that fades towards the missing lane.
@@ -104,7 +106,13 @@ export const CurveCaps = memo(function CurveCaps({ curves, layout, anchor, span 
               <Cap kind={style.start} at="start" left={layerPercent(curve.from.t, anchor, span)} top={yOf(curve.from.row)} />
             )}
             {curve.to.row !== null && (
-              <Cap kind={style.end} at="end" left={layerPercent(curve.to.t, anchor, span)} top={yOf(curve.to.row)} />
+              <Cap
+                kind={style.end}
+                at="end"
+                left={layerPercent(curve.to.t, anchor, span)}
+                top={curve.to.midTurn && curve.from.row !== null ? landingY(layout, curve.to.row, yOf(curve.from.row)) : yOf(curve.to.row)}
+                dir={curve.to.midTurn && curve.from.row !== null ? (curve.from.row < curve.to.row ? "down" : "up") : "right"}
+              />
             )}
           </span>
         );
@@ -113,10 +121,23 @@ export const CurveCaps = memo(function CurveCaps({ curves, layout, anchor, span 
   );
 });
 
-function Cap({ kind, at, left, top }: { kind: LineCap; at: "start" | "end"; left: number; top: number }) {
+function Cap({
+  kind,
+  at,
+  left,
+  top,
+  dir = "right",
+}: {
+  kind: LineCap;
+  at: "start" | "end";
+  left: number;
+  top: number;
+  /** Which way an arrow points: along the lane, or down or up onto a block's edge. */
+  dir?: "right" | "down" | "up";
+}) {
   if (kind === "none") return null;
   return (
-    <span className="bl-cap" data-cap={kind} data-at={at} style={{ left: `${left}%`, top }}>
+    <span className="bl-cap" data-cap={kind} data-at={at} data-dir={dir === "right" ? undefined : dir} style={{ left: `${left}%`, top }}>
       {kind === "arrow" && (
         <svg width="6" height="8" viewBox="0 0 6 8" aria-hidden="true">
           <path d="M1 1 L5 4 L1 7" />
@@ -124,6 +145,12 @@ function Cap({ kind, at, left, top }: { kind: LineCap; at: "start" | "end"; left
       )}
     </span>
   );
+}
+
+/** The edge of the target's block that faces the sender's lane. */
+function landingY(layout: RowLayout, row: number, fromY: number): number {
+  const mid = layout.mids[row]!;
+  return fromY < mid ? mid - layout.blockHalf : mid + layout.blockHalf;
 }
 
 function stubGradientId(uid: string, handoffId: string): string {

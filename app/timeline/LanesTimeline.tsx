@@ -6,7 +6,7 @@
 // anchor time plus a culling range) in percent of the track; the controller
 // slides and pans by writing transforms. Rows are virtualised; only blocks in
 // the frame's range are drawn, and dense history collapses into clusters.
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { LaneBlock } from "../../shared/model";
 import type { GroupRow, LaneRow, TimelineProps } from "../../shared/view";
@@ -46,6 +46,7 @@ import {
   useRegistrar,
   useTouchPan,
 } from "./hooks";
+import { withReportTitles } from "./labels";
 import { LinkingStyle, cssString } from "./linking";
 import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
@@ -64,7 +65,7 @@ interface Focusable {
 }
 
 export function LanesTimeline(props: TimelineProps) {
-  const { rows, blocks, handoffs, now, viewport, density, highlightedThreadId, className } = props;
+  const { rows, handoffs, now, viewport, density, highlightedThreadId, className } = props;
   const rawId = useId();
   const uid = useMemo(() => `bl${rawId.replace(/[^a-zA-Z0-9]/g, "")}`, [rawId]);
 
@@ -73,6 +74,7 @@ export function LanesTimeline(props: TimelineProps) {
   const latest = useRef(props);
   latest.current = props;
   const describe = useCallback<Describe>((id) => latest.current.describeThread(id), []);
+  const blocks = useMemo(() => withReportTitles(props.blocks, handoffs, describe), [props.blocks, handoffs, describe]);
 
   // Below 520px the names column is avatars only and each lane gains a caption line.
   const [narrow, setNarrow] = useState(false);
@@ -90,7 +92,9 @@ export function LanesTimeline(props: TimelineProps) {
   const controllerRef = useRef<ViewController | null>(null);
   if (controllerRef.current === null) {
     controllerRef.current = new ViewController(viewport, now, {
-      requestFrame: () => setFrame(controllerRef.current!.cutFrame()),
+      // A new frame re-lays every row out; render it without blocking, while
+      // the current one keeps sliding by transform within its margin.
+      requestFrame: () => startTransition(() => setFrame(controllerRef.current!.cutFrame())),
       commit: (next) => latest.current.onViewportChange(next),
     });
   }
@@ -823,6 +827,7 @@ export function LanesTimeline(props: TimelineProps) {
     "data-dragging": dragging ? "" : undefined,
     "data-reflow": reflowing ? "" : undefined,
     "data-narrow": narrow ? "" : undefined,
+    "data-scrolled": scroll.top > 0 ? "" : undefined,
     style: rootStyle,
     role: "region",
     "aria-label": "Agent lanes",
@@ -845,7 +850,12 @@ export function LanesTimeline(props: TimelineProps) {
   }
 
   const openRowIndex = openBlock ? rowIndexById(layout, openBlock.threadId) : -1;
-  const openUp = openRowIndex >= 0 && layout.tops[openRowIndex]! - Math.max(0, scroll.top - rulerHeight) > (scroll.height - rulerHeight) / 2;
+  // Upstream opens above a lane in the bottom half (row ≥ rows / 2); with rows
+  // that scroll, the lane's middle against the middle of the view says the same.
+  const openUp =
+    openRowIndex >= 0 &&
+    layout.tops[openRowIndex]! + layout.heights[openRowIndex]! / 2 - Math.max(0, scroll.top - rulerHeight) >
+      (scroll.height - rulerHeight) / 2;
 
   return (
     <div {...rootProps}>

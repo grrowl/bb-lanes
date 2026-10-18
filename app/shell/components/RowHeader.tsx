@@ -1,6 +1,7 @@
 // The names column cells: what each row is, drawn by the shell and placed by
-// the engine. Group cells disclose their lanes; lane cells carry the thread's
-// identity, live state tag, and actions.
+// the engine. A lane cell is upstream's agent cell (avatar, name with its
+// state tag, model line) with a tree guide for sub-threads; a group cell is a
+// one-line bar for its group, with upstream's summary.
 import { useRef, type MouseEvent, type ReactNode } from "react";
 import {
   experimental_useSidebarThreadSplit,
@@ -12,14 +13,13 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Icon } from "@/components/ui/icon";
-import { cn } from "@/lib/utils";
 import type { GroupRow, LaneRow } from "../../../shared/view";
 import type { ProviderInfo } from "../data/useLanesData";
 import type { GroupMeta, LaneMeta, LaneState } from "../grouping/types";
+import { Chevron } from "./glyphs";
 import { ProviderAvatar } from "./ProviderAvatar";
 
 const STATE_LABEL: Record<LaneState, string | null> = {
@@ -30,6 +30,12 @@ const STATE_LABEL: Record<LaneState, string | null> = {
   failed: "Failed",
   queued: "Queued",
 };
+
+/** Upstream's cell geometry: 16px in, a 26px avatar, and one avatar-and-gap per tree level. */
+const INSET = 16;
+const AVATAR = 26;
+const LEVEL = 22;
+const avatarCentre = (depth: number) => INSET + depth * LEVEL + AVATAR / 2;
 
 export interface LaneActions {
   open(threadId: string, split: boolean): void;
@@ -75,9 +81,11 @@ export function Highlighted({ text, terms }: { text: string; terms: readonly str
   return <>{parts}</>;
 }
 
+export type SummaryKind = "running" | "needs" | "failed" | "lanes";
+
 /** Upstream's summary line: only the parts that are not zero, then the lane count. */
-export function groupSummary(counts: GroupRow["counts"]): { kind: "running" | "needs" | "failed" | "lanes"; text: string }[] {
-  const parts: { kind: "running" | "needs" | "failed" | "lanes"; text: string }[] = [];
+export function groupSummary(counts: GroupRow["counts"]): { kind: SummaryKind; text: string }[] {
+  const parts: { kind: SummaryKind; text: string }[] = [];
   if (counts.running > 0) parts.push({ kind: "running", text: `${counts.running} running` });
   if (counts.waiting > 0) parts.push({ kind: "needs", text: `${counts.waiting} need you` });
   if (counts.failed > 0) parts.push({ kind: "failed", text: `${counts.failed} failed` });
@@ -85,21 +93,14 @@ export function groupSummary(counts: GroupRow["counts"]): { kind: "running" | "n
   return parts;
 }
 
-const SUMMARY_TONE = { running: "lanes-tone-run", needs: "lanes-tone-warn", failed: "lanes-tone-danger" } as const;
-
 export function GroupSummary({ counts }: { counts: GroupRow["counts"] }) {
   return (
     <span className="lanes-summary">
-      {groupSummary(counts).map((part) =>
-        part.kind === "lanes" ? (
-          <span key={part.kind}>{part.text}</span>
-        ) : (
-          <span key={part.kind} className={SUMMARY_TONE[part.kind]} data-kind={part.kind}>
-            <span className="lanes-dot" aria-hidden="true" />
-            {part.text}
-          </span>
-        ),
-      )}
+      {groupSummary(counts).map((part) => (
+        <span key={part.kind} data-kind={part.kind === "lanes" ? undefined : part.kind}>
+          {part.text}
+        </span>
+      ))}
     </span>
   );
 }
@@ -119,31 +120,26 @@ export function GroupHeaderCell({
     .map((part) => part.text)
     .join(", ");
   return (
-    <div className="lanes-cell pl-3 pr-3">
+    <div className="lanes-group">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!row.collapsed}
         aria-label={`${row.label}${meta?.detail ? ` ${meta.detail}` : ""}, ${summary}`}
-        className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <span className="lanes-chevron grid size-3.5 flex-none place-items-center text-muted-foreground" data-collapsed={row.collapsed ? "" : undefined}>
-          <Icon name="ChevronDown" className="size-3.5" aria-hidden />
+        <Chevron collapsed={row.collapsed} />
+        <span className="lanes-group-icon">
+          {meta?.kind === "provider" ? (
+            <ProviderAvatar provider={provider} fallbackName={row.label} size="small" />
+          ) : (
+            <Icon name={meta?.icon ?? "Folder"} aria-hidden />
+          )}
         </span>
-        {meta?.kind === "provider" ? (
-          <span className="flex-none scale-[0.7] -mx-1">
-            <ProviderAvatar provider={provider} fallbackName={row.label} />
-          </span>
-        ) : (
-          <Icon name={meta?.icon ?? "Folder"} className="size-3.5 flex-none text-muted-foreground" aria-hidden />
-        )}
-        <span className="lanes-group-text grid min-w-0">
-          <span className="truncate text-[13px] font-semibold leading-[18px] text-foreground">
-            {row.label}
-            {meta?.detail ? <span className="ml-1.5 font-normal text-muted-foreground">{meta.detail}</span> : null}
-          </span>
-          <GroupSummary counts={row.counts} />
+        <span className="lanes-group-label">
+          {row.label}
+          {meta?.detail ? <span className="lanes-group-detail">{meta.detail}</span> : null}
         </span>
+        <GroupSummary counts={row.counts} />
       </button>
     </div>
   );
@@ -162,6 +158,36 @@ export interface LaneHeaderCellProps {
   actions: LaneActions;
 }
 
+/** Hairlines from each ancestor's avatar down to its children's, ending in a soft elbow. */
+function TreeGuides({ row, meta }: { row: LaneRow; meta: LaneMeta | undefined }) {
+  const guides: ReactNode[] = [];
+  meta?.guides.forEach((continues, level) => {
+    if (continues) guides.push(<span key={level} className="lanes-guide" style={{ top: 0, bottom: 0, left: avatarCentre(level) - 0.5 }} />);
+  });
+  if (row.depth > 0) {
+    const x = avatarCentre(row.depth - 1) - 0.5;
+    if (!row.isLastChild) guides.push(<span key="through" className="lanes-guide" style={{ top: 0, bottom: 0, left: x }} />);
+    guides.push(
+      <span
+        key="elbow"
+        className="lanes-guide"
+        data-elbow=""
+        style={{ top: 0, left: x, width: INSET + row.depth * LEVEL - 3 - x }}
+      />,
+    );
+  }
+  if (row.hasChildren && !row.collapsed) {
+    guides.push(
+      <span
+        key="down"
+        className="lanes-guide"
+        style={{ top: `calc(50% + ${AVATAR / 2 + 3}px)`, bottom: 0, left: avatarCentre(row.depth) - 0.5 }}
+      />,
+    );
+  }
+  return <>{guides}</>;
+}
+
 export function LaneHeaderCell({
   row,
   thread,
@@ -174,10 +200,6 @@ export function LaneHeaderCell({
   actions,
 }: LaneHeaderCellProps) {
   const split = experimental_useSidebarThreadSplit(thread.id);
-  const avatar = 26;
-  const step = 22;
-  const inset = 12;
-  const centre = (depth: number) => inset + depth * step + avatar / 2 - 0.5;
 
   // Lanes stays on screen: a plain click opens the thread beside it, and
   // ⌘/Ctrl-click opens it in place. Where splits are off, bb falls back to
@@ -191,91 +213,61 @@ export function LaneHeaderCell({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className="lanes-cell gap-2.5 pr-3"
-          style={{ paddingLeft: inset + row.depth * step }}
+          className="lanes-agent"
+          style={{ paddingLeft: INSET + row.depth * LEVEL }}
           data-highlighted={highlighted ? "" : undefined}
         >
-          {highlighted ? (
-            <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-[var(--lanes-run)]" aria-hidden="true" />
-          ) : null}
-          {meta?.guides.map((continues, index) =>
-            continues ? (
-              <span key={index} className="lanes-guide inset-y-0 w-px" style={{ left: centre(index) }} />
-            ) : null,
-          )}
-          {row.depth > 0 ? (
-            <>
-              <span
-                className="lanes-guide top-0 w-px"
-                style={{ left: centre(row.depth - 1), bottom: row.isLastChild ? "50%" : 0 }}
-              />
-              <span
-                className="lanes-guide top-1/2 h-px"
-                style={{ left: centre(row.depth - 1), width: inset + row.depth * step - centre(row.depth - 1) - 2 }}
-              />
-            </>
-          ) : null}
-          {row.hasChildren && !row.collapsed ? (
-            <span className="lanes-guide bottom-0 w-px" style={{ left: centre(row.depth), top: `calc(50% + ${avatar / 2}px)` }} />
-          ) : null}
-
-          <span className="relative flex-none">
+          <TreeGuides row={row} meta={meta} />
+          <span className="lanes-avatar-slot">
             <ProviderAvatar provider={provider} fallbackName={thread.displayTitle} />
+            {thread.isUnread ? <span className="lanes-unread" role="img" aria-label="Unread" /> : null}
             {row.hasChildren ? (
               <button
                 type="button"
+                className="lanes-disclose"
+                data-show={row.collapsed || revealed ? "" : undefined}
                 onClick={() => actions.toggleLane(thread.id)}
                 aria-expanded={!row.collapsed}
                 aria-label={row.collapsed ? "Show sub-threads" : "Hide sub-threads"}
-                className={cn(
-                  "absolute -bottom-1.5 left-1/2 grid size-3.5 -translate-x-1/2 place-items-center rounded-full bg-card text-muted-foreground shadow-[var(--lanes-tile-shadow)] outline-none transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-ring",
-                  row.collapsed || revealed ? "opacity-100" : "opacity-0",
-                )}
               >
-                <span className="lanes-chevron grid place-items-center" data-collapsed={row.collapsed ? "" : undefined}>
-                  <Icon name="ChevronDown" className="size-2.5" aria-hidden />
-                </span>
+                <Chevron collapsed={row.collapsed} />
               </button>
             ) : null}
           </span>
-
           <span className="lanes-who">
-            <span className="flex min-w-0 items-center">
+            <span className="lanes-name-line" data-state={row.state}>
               <a
                 href={thread.href}
                 {...split.splitProps}
                 onClick={openFromClick}
                 title={thread.displayTitle}
-                className={cn(
-                  "min-w-0 truncate rounded-sm text-[14px] font-medium leading-5 outline-none decoration-border underline-offset-2 hover:underline focus-visible:ring-1 focus-visible:ring-ring",
-                  meta?.matched === false ? "text-muted-foreground" : "text-foreground",
-                )}
+                className="lanes-name"
+                data-context={meta?.matched === false ? "" : undefined}
               >
                 {terms.length > 0 ? <Highlighted text={thread.displayTitle} terms={terms} /> : <ThreadTitle threadId={thread.id} />}
               </a>
-              {thread.isUnread && row.state === "idle" ? (
-                <span className="ml-1.5 size-[5px] flex-none rounded-full bg-muted-foreground/60" role="img" aria-label="Unread" />
-              ) : null}
               <StateTag state={row.state} />
             </span>
-            <span className="min-w-0 truncate text-[12px] leading-4 text-muted-foreground">
-              <Highlighted text={subtitle} terms={terms} />
+            <span className="lanes-model">
+              <span>
+                <Highlighted text={subtitle} terms={terms} />
+              </span>
             </span>
           </span>
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent className="min-w-48">
+      <ContextMenuContent className="bl-theme lanes-menu">
         {split.isAvailable ? (
           <>
             <ContextMenuItem onSelect={() => actions.open(thread.id, true)}>
               <Icon name="Columns2" aria-hidden />
               Open beside
-              <ContextMenuShortcut>Click</ContextMenuShortcut>
+              <span className="lanes-menu-key">Click</span>
             </ContextMenuItem>
             <ContextMenuItem onSelect={() => actions.open(thread.id, false)}>
               <Icon name="MessageSquare" aria-hidden />
               Open here
-              <ContextMenuShortcut>⌘ Click</ContextMenuShortcut>
+              <span className="lanes-menu-key">⌘ Click</span>
             </ContextMenuItem>
           </>
         ) : (

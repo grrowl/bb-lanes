@@ -56,10 +56,12 @@ describe("parsePreferences", () => {
 
 describe("namesColumnWidth", () => {
   it("is roomy on a full pane and narrower on a small one", () => {
-    expect(namesColumnWidth(1_400, null)).toBe(272);
-    expect(namesColumnWidth(Infinity, null)).toBe(272);
-    expect(namesColumnWidth(800, null)).toBe(192);
-    expect(namesColumnWidth(500, null)).toBe(168);
+    expect(namesColumnWidth(1_400, null)).toBe(320);
+    expect(namesColumnWidth(Infinity, null)).toBe(320);
+    expect(namesColumnWidth(800, null)).toBe(264);
+    expect(namesColumnWidth(555, null)).toBe(220);
+    // Below 520px the engine shows avatars only, whatever this says.
+    expect(namesColumnWidth(500, null)).toBe(210);
   });
 
   it("honours a dragged width but never takes more than half the pane", () => {

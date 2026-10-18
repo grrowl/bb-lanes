@@ -98,8 +98,12 @@ const TICK_STEPS = [
   2 * DAY,
 ];
 
-/** The smallest step whose labels stay at least `minSpacingPx` apart. */
-export function chooseTickStep(span: number, widthPx: number, minSpacingPx = 84): number {
+/**
+ * The smallest step whose labels stay at least `minSpacingPx` apart. Upstream
+ * picks 1m, 5m or 15m by span alone and lets labels sit 38px apart on its
+ * card; 64px keeps its 5m steps at its own width and stays calm at any other.
+ */
+export function chooseTickStep(span: number, widthPx: number, minSpacingPx = 64): number {
   const pxPerMs = Math.max(1, widthPx) / span;
   return TICK_STEPS.find((step) => step * pxPerMs >= minSpacingPx) ?? TICK_STEPS[TICK_STEPS.length - 1]!;
 }

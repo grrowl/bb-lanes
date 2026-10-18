@@ -19,9 +19,10 @@ import { toast } from "sonner";
 import { useIsCompactViewport } from "@/components/ui/hooks/use-compact-viewport";
 import type { Row, RowDensity, TimelineProps, Viewport } from "../../shared/view";
 import { EmptyLanes, LoadingLanes } from "./components/EmptyLanes";
-import { LiveControl, SpanControl } from "./components/HeaderContent";
+import { LiveSummary } from "./components/HeaderContent";
 import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "./components/RowHeader";
 import { Toolbar } from "./components/Toolbar";
+import { countLiveStates } from "./data/live-counts";
 import { teamThreadIds } from "./data/team-scope";
 import { useLanesData, useServerNow, type ProviderInfo } from "./data/useLanesData";
 import { laneState, searchTerms, summarizeActivity } from "./grouping/lane-state";
@@ -336,31 +337,24 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
     search: () => searchRef.current?.focus(),
   });
 
+  // Beside a thread there is no title bar to carry the summary: the bar leads with the team's own.
+  const teamCounts = useMemo(() => (teamOf === null ? null : countLiveStates(threads)), [teamOf, threads]);
+
   const loading = data.sidebar.status === "loading" || (data.status === "loading" && threads.length === 0);
 
   return (
-    <div
-      ref={rootRef}
-      className="lanes-chrome flex h-full min-h-0 flex-1 flex-col bg-surface-recessed p-1 text-[14px] leading-5"
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card shadow-[var(--lanes-tile-shadow)]">
-        <Toolbar
-          state={state}
-          actions={actions}
-          counts={filterCounts}
-          groupIds={groupIds}
-          condensed={condensed}
-          searchRef={searchRef}
-          status={{ indexing: data.indexing, historyError: data.error, onRetry: data.refetch }}
-          trailing={
-            surface === "team-lanes" ? (
-              <>
-                <SpanControl span={state.span} onChange={actions.setSpan} menu={condensed} />
-                <LiveControl live={state.live} onGoLive={actions.goLive} />
-              </>
-            ) : undefined
-          }
-        />
+    <div ref={rootRef} className="bl-theme lanes-chrome lanes-tray">
+      <Toolbar
+        state={state}
+        actions={actions}
+        counts={filterCounts}
+        groupIds={groupIds}
+        condensed={condensed}
+        searchRef={searchRef}
+        status={{ indexing: data.indexing, historyError: data.error, onRetry: data.refetch }}
+        summary={teamCounts === null ? undefined : <LiveSummary counts={teamCounts} />}
+      />
+      <div className="lanes-card">
         {loading ? (
           <LoadingLanes />
         ) : (
@@ -396,7 +390,6 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
                   onClearSearch={() => actions.setQuery("")}
                 />
               ),
-              className: "min-h-0 flex-1",
             }}
           />
         )}

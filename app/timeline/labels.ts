@@ -1,5 +1,5 @@
 // Copy shared by blocks, tooltips, and screen-reader labels.
-import type { BlockStatus, LaneBlock } from "../../shared/model";
+import type { BlockStatus, LaneBlock, LaneHandoff } from "../../shared/model";
 import { formatClock, formatDuration } from "./time";
 
 export const STATUS_LABEL: Record<BlockStatus, string> = {
@@ -26,8 +26,31 @@ export function blockTitle(block: LaneBlock, describe: Describe): string {
   if (isProvisional(block)) return "Working…";
   if (block.source === "spawn") return "Started";
   if (block.senderThreadId) return `Message from ${describe(block.senderThreadId).title}`;
-  if (block.initiator === "system") return "System turn";
+  if (block.initiator === "system") return "Update from bb";
   return "Turn";
+}
+
+/**
+ * bb starts a turn on a parent when a child finishes or fails, and its input
+ * has no prose to title it by. Those turns read "Report from <child>" (or
+ * "Reports from 3 threads"), named by their end hand-offs. Every other block
+ * is returned as it is.
+ */
+export function withReportTitles(blocks: readonly LaneBlock[], handoffs: readonly LaneHandoff[], describe: Describe): readonly LaneBlock[] {
+  const reporters = new Map<string, Set<string>>();
+  for (const handoff of handoffs) {
+    if (handoff.kind !== "end") continue;
+    const from = reporters.get(handoff.toBlockId) ?? new Set<string>();
+    from.add(handoff.fromThreadId);
+    reporters.set(handoff.toBlockId, from);
+  }
+  if (reporters.size === 0) return blocks;
+  return blocks.map((block) => {
+    const from = reporters.get(block.id);
+    if (!from || block.title.trim() !== "") return block;
+    const title = from.size === 1 ? `Report from ${describe([...from][0]!).title}` : `Reports from ${from.size} threads`;
+    return { ...block, title };
+  });
 }
 
 export function blockDuration(block: LaneBlock, now: number): number {
