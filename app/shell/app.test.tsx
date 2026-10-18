@@ -53,11 +53,10 @@ describe("Lanes app registration", () => {
   it("registers the Lanes pane, its header, accessory, and the team panel action", async () => {
     const app = await loadApp();
     expect(app.navPanels).toHaveLength(1);
-    expect(app.navPanels[0]).toMatchObject({ id: "lanes", path: "lanes", title: "Lanes", icon: "ChartGantt" });
+    expect(app.navPanels[0]).toMatchObject({ id: "lanes", path: "lanes", title: "Lanes", icon: "lanes/lanes" });
     expect(app.navPanels[0]?.headerContent).toBeTypeOf("function");
     expect(app.navPanels[0]?.experimental_sidebarAccessory).toBeTypeOf("function");
     expect(app.threadPanelActions[0]).toMatchObject({ id: "team-lanes", title: "Team lanes", layout: "flush" });
-    expect(app.icons.map((icon) => icon.name)).toContain("ChartGantt");
   });
 });
 
