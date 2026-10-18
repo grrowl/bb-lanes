@@ -64,6 +64,18 @@ describe("rows", () => {
     expect(layoutRows([group("g", []), lane("a")], "compact").total).toBe(28 + 36);
   });
 
+  it("attaches hand-off lines to a lane's blocks and a group's middle", () => {
+    const layout = layoutRows([group("g", ["a"]), lane("a")], "comfortable");
+    expect(layout.mids).toEqual([16, 32 + 24]);
+  });
+
+  it("gives narrow lanes a caption line above upstream's 28px block", () => {
+    const layout = layoutRows([group("g", ["a", "b"]), lane("a"), lane("b")], "comfortable", true);
+    expect(layout.heights).toEqual([32, 56, 56]);
+    // The block runs from 22px to 50px: lines meet its middle, not the row's.
+    expect(layout.mids).toEqual([16, 32 + 36, 88 + 36]);
+  });
+
   it("draws hidden threads at the collapsed row that hides them", () => {
     const layout = layoutRows(
       [group("g1", ["a", "b"], true), group("g2", ["p", "c"]), lane("p", { hasChildren: true, collapsed: true, collapsedThreadIds: ["c"] })],
