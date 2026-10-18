@@ -242,6 +242,56 @@ checked in the parity page only. bb draws the sidebar accessory in a slot
 that its icon navigation hides, so the accessory renders but does not show
 in these screenshots.
 
+## Lane jumpers
+
+Upstream has no jumpers, so they are drawn in its language. A jumper is a
+22px disc on the card colour with upstream's shadow and a 12px chevron in the
+muted colour. It sits 8px inside the track's edge, centred on the lane's
+blocks, above the left fade. Its hit area is 32px, and 44px on touch.
+
+- **When they show.** The ‹ shows when none of the lane's turns overlaps the
+  left half of the window and the lane has a turn that ended before the
+  window. The › shows when the window is not live, none of the lane's turns
+  overlaps the right half, and the lane has a turn that starts after the
+  window. A jumper therefore never covers one of its lane's turns. While the
+  view moves, the jumpers fade out, so a sliding block never passes under
+  one.
+- **Hover.** The disc opens into a pill, e.g., "‹ 3h ago" or "in 40m ›". It
+  opens with the grid technique and the timings of upstream's state tag
+  (320ms, with the opacity 260ms after an 80ms delay). A previous turn is
+  measured from now. A next turn is measured from the window's right edge.
+  The dark tooltip names the turn, with a dot in its state colour.
+- **The zip.** The window keeps its span and glides 420ms with a
+  decelerating ease (a quartic ease out). The ruler, the blocks and the lines
+  move together. A previous turn lands with its end 70% across the window. A
+  turn too long for that to show its start lands with its start 10% across
+  instead. A next turn lands with its start 30% across, or 10% across when
+  it is longer than the span. A window that reaches now follows the clock
+  again.
+- **Landing.** The turn takes the open block's tone, and a focus ring fades
+  around it over 1.2s. Keyboard focus moves to it. A turn older than the
+  loaded history is drawn from the server's neighbours, so it is on screen
+  during the glide and lands at once. The shell then loads the history
+  around it.
+- **Keyboard.** The jumpers are in the roving tab order with the blocks. ←
+  and → zip when the next target that way lies wholly outside the window,
+  e.g., ← on the first turn in view. Enter and Space zip from a focused
+  jumper. Its label reads, e.g., "Jump to previous turn: Plan the release,
+  55m ago".
+
+`scripts/qa/jumps.mjs` checks and photographs the jumpers in the live bb with
+real data, in light and dark, on a desktop and on a 390px touch screen. It
+also records a zip with Chrome's screencast and samples every animation
+frame. In every run the ruler had the same transform as the lanes on every
+frame, and the glide moved on 24 to 27 frames with none over 20ms.
+
+| View | Light | Dark |
+|---|---|---|
+| At rest | [desktop](fidelity/jumps/rest-desktop-light.png), [390px](fidelity/jumps/rest-390-light.png) | [desktop](fidelity/jumps/rest-desktop-dark.png), [390px](fidelity/jumps/rest-390-dark.png) |
+| Hovered | [desktop](fidelity/jumps/hover-desktop-light.png) | [desktop](fidelity/jumps/hover-desktop-dark.png) |
+| Landed | [desktop](fidelity/jumps/landing-desktop-light.png), [390px](fidelity/jumps/landing-390-light.png) | [desktop](fidelity/jumps/landing-desktop-dark.png), [390px](fidelity/jumps/landing-390-dark.png) |
+| A zip, frame by frame | [bb](fidelity/jumps/zip-frames-desktop-light.png), [harness, a turn not yet loaded](fidelity/jumps/harness-zip-frames-light.png) | [bb](fidelity/jumps/zip-frames-desktop-dark.png) |
+
 ## Narrow panes and touch
 
 These checks run against the live bb at 390 by 844 with touch emulation, in
