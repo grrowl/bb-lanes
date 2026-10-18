@@ -10,7 +10,10 @@
     "name": "Lanes",
     "description": "Where every agent is right now: a live timeline with a lane per thread, turns growing into now, hand-offs drawn between agents, and approvals right on the block.",
     "branding": {
-      "icon": "ChartGantt"
+      "icon": "./assets/lanes.svg",
+      "experimental_icons": {
+        "lanes": "./assets/lanes.svg"
+      }
     },
     "server": "./server.ts",
     "app": "./app.tsx"

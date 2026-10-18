@@ -8,7 +8,6 @@ import type { ComponentType } from "react";
 import { definePluginApp, type PluginNavPanelProps, type PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
 import type { TimelineProps } from "./shared/view";
 import { LanesHeaderContent, LanesSidebarAccessory } from "./app/shell/components/HeaderContent";
-import { LanesIcon, LANES_ICON_NAME } from "./app/shell/components/LanesIcon";
 import { LanesPane } from "./app/shell/LanesPane";
 import { TeamLanesPanel } from "./app/shell/TeamLanesPanel";
 import { StandInTimeline } from "./app/shell/dev/StandInTimeline";
@@ -31,12 +30,15 @@ function HeaderContent(_props: PluginNavPanelProps) {
   );
 }
 
+// Declared in the manifest (bb.branding.experimental_icons) so the sidebar can
+// draw it before this bundle loads.
+const LANES_ICON = "lanes/lanes";
+
 export default definePluginApp((app) => {
-  app.experimental_icons.register({ name: LANES_ICON_NAME, component: LanesIcon });
   app.slots.navPanel({
     id: "lanes",
     title: "Lanes",
-    icon: LANES_ICON_NAME,
+    icon: LANES_ICON,
     path: "lanes",
     component: LanesPage,
     headerContent: HeaderContent,
@@ -45,7 +47,7 @@ export default definePluginApp((app) => {
   app.slots.threadPanelAction({
     id: "team-lanes",
     title: "Team lanes",
-    icon: LANES_ICON_NAME,
+    icon: LANES_ICON,
     layout: "flush",
     component: TeamLanesTab,
   });
