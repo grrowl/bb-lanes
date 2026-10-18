@@ -29,9 +29,13 @@ function setup(initial: IndexEvent[] = []) {
   let events = initial;
   let subscription: ThreadSubscription | undefined;
   const unsubscribe = vi.fn();
-  const list = vi.fn(async (args: EventListArgs) => events.filter(event => event.seq > Number(args.afterSeq ?? 0)
+  const list = vi.fn(async (args: EventListArgs) => {
+    // bb rejects pages over 100 events; the fake does the same so paging bugs surface here.
+    if (Number(args.limit ?? 100) > 100) throw new Error("HTTP 400: Thread event limit cannot exceed 100");
+    return events.filter(event => event.seq > Number(args.afterSeq ?? 0)
     && (args.beforeSeq === undefined || event.seq < Number(args.beforeSeq))
-    && (!args.types || args.types.some(type => type === event.type))).slice(0, Number(args.limit ?? 500)));
+    && (!args.types || args.types.some(type => type === event.type))).slice(0, Number(args.limit ?? 100));
+  });
   const host = createFakePluginHost({ pluginId: "lanes", sdk: {
     threads: { list: async () => [thread], get: async () => thread, events: { list } },
     projects: { list: async () => [{ id: thread.projectId, name: "Lanes project" }] },
@@ -190,22 +194,24 @@ describe("lanes backend", () => {
       .toEqual({ ok: false, message: "Interaction no longer exists" });
   });
   it("pages filtered histories past the SDK page boundary", async () => {
-    const host = setup(Array.from({ length: 502 }, (_, i) => event(i + 1, "turn/started", `turn-${i}`)));
+    const host = setup(Array.from({ length: 202 }, (_, i) => event(i + 1, "turn/started", `turn-${i}`)));
     await boot(host);
-    expect(host.list).toHaveBeenCalledTimes(2);
-    expect(host.list.mock.calls[1][0].afterSeq).toBe("500");
-    expect((await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot).blocks).toHaveLength(502);
+    expect(host.list).toHaveBeenCalledTimes(3);
+    expect(host.list.mock.calls[1][0].afterSeq).toBe("100");
+    expect((await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot).blocks).toHaveLength(202);
   });
-  it("allows the host to restart a failed indexer service", async () => {
+  it("retries a thread whose history read fails without failing the backfill", async () => {
     const host = setup([event(1, "turn/started", "turn")]);
     host.list.mockRejectedValueOnce(new Error("Transient history read failure"));
     await plugin(host.bb);
-    const first = host.harness.behavior.runService("lanes-indexer");
-    await expect(first.done).rejects.toThrow("Transient history read failure");
-    const second = host.harness.behavior.runService("lanes-indexer");
-    await vi.waitFor(async () => expect((await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot).indexing).toBe(false));
-    second.controller.abort();
-    await second.done;
+    const service = host.harness.behavior.runService("lanes-indexer");
+    await vi.waitFor(async () => {
+      const snapshot = await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot;
+      expect(snapshot.indexing).toBe(false);
+      expect(snapshot.blocks).toHaveLength(1);
+    });
+    service.controller.abort();
+    await service.done;
   });
   it("stops an in-flight history read promptly when the service aborts", async () => {
     const host = setup();

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { emptyIndex, foldEvents, reconcileIdle, type IndexEvent, type IndexThread } from "./indexer";
+import { emptyIndex, foldEvents, promptTitle, reconcileIdle, type IndexEvent, type IndexThread } from "./indexer";
 
 const thread: IndexThread = { id: "child", parentThreadId: "parent", status: "active", updatedAt: 1000 };
 const event = (seq: number, type: string, turnId?: string, data: unknown = {}): IndexEvent => ({
@@ -107,5 +107,21 @@ describe("thread event fold", () => {
     expect(incremental).toEqual(whole);
     expect(Object.keys(whole.turns)).toHaveLength(6);
     expect(whole.turns["dadaa17abc-t1"].block.counts.commands).toBe(3);
+  });
+});
+
+describe("promptTitle", () => {
+  it("skips bb envelopes and markdown markers", () => {
+    expect(promptTitle("[bb message from thread:thr_abc]\n\nShell worker done.")).toBe("Shell worker done.");
+    expect(promptTitle("[bb system]\n\n@thread:thr_x completed:")).toBe("@thread:thr_x completed:");
+    expect(promptTitle("## Team context (read first)\nbody")).toBe("Team context (read first)");
+    expect(promptTitle("---\n- **Fix** the `build`")).toBe("Fix the build");
+    expect(promptTitle("   \n\n")).toBe("");
+  });
+  it("trims long lines at a word boundary", () => {
+    const title = promptTitle(`${"word ".repeat(40)}end`);
+    expect(title.length).toBeLessThanOrEqual(120);
+    expect(title.endsWith("…")).toBe(true);
+    expect(title).not.toMatch(/ …$/);
   });
 });
