@@ -10,9 +10,9 @@ import type { TimelineProps } from "./shared/view";
 import { LanesHeaderContent, LanesSidebarAccessory } from "./app/shell/components/HeaderContent";
 import { LanesPane } from "./app/shell/LanesPane";
 import { TeamLanesPanel } from "./app/shell/TeamLanesPanel";
-import { StandInTimeline } from "./app/shell/dev/StandInTimeline";
+import { LanesTimeline } from "./app/timeline/LanesTimeline";
 
-const Timeline: ComponentType<TimelineProps> = StandInTimeline;
+const Timeline: ComponentType<TimelineProps> = LanesTimeline;
 
 function LanesPage(_props: PluginNavPanelProps) {
   return <LanesPane surface="lanes" Timeline={Timeline} />;

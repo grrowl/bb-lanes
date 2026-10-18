@@ -7,26 +7,11 @@ import type { Row, TimelineProps } from "../../shared/view";
 import { describeFixture, fixtureDetail, fixtureRows, scenario } from "./fixtures";
 import { LanesTimeline } from "./LanesTimeline";
 import { MINUTE } from "./time";
+import { installLayoutShims } from "../../test/layout";
 
 beforeAll(() => {
   installTestPluginRuntime();
-  // jsdom lays nothing out: give every element a pane-sized box.
-  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
-    () => ({ x: 0, y: 0, top: 0, left: 0, right: 1200, bottom: 800, width: 1200, height: 800, toJSON() {} }) as DOMRect,
-  );
-  Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => 800 });
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  } as unknown as typeof ResizeObserver;
-  window.matchMedia = ((query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener() {},
-    removeEventListener() {},
-  })) as unknown as typeof window.matchMedia;
-  Element.prototype.scrollTo = function scrollTo() {};
+  installLayoutShims();
 });
 
 afterEach(cleanup);

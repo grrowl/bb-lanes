@@ -2,10 +2,13 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { PluginNavPanelProps, PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { LANES_CHANGED, type LanesSnapshot } from "../../shared/model";
 import type { rpcContract } from "../../shared/rpc";
+import { installLayoutShims } from "../../test/layout";
 import { makeBlock, makeProject, makeThread } from "./testing/fixtures";
+
+beforeAll(installLayoutShims);
 
 const NOW = Date.now();
 

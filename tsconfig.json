@@ -28,6 +28,7 @@
     "shared",
     "components",
     "lib",
-    "hooks"
+    "hooks",
+    "test"
   ]
 }
