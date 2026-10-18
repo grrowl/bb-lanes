@@ -93,7 +93,8 @@ function useShellCells(threads: readonly CellThread[], rows: readonly Row[], onT
     () => new Map(threads.map((t) => [t.id, makeThread({ id: t.id, title: t.title })])),
     [threads],
   );
-  useEffect(() => setHarnessTitles(threads.map((t) => [t.id, t.title])), [threads]);
+  // Titles must be known before the first cell draws: cells are memoised and do not draw again for them.
+  useMemo(() => setHarnessTitles(threads.map((t) => [t.id, t.title])), [threads]);
   const meta = useMemo(() => treeMeta(rows), [rows]);
   const actions = useMemo<LaneActions>(
     () => ({
