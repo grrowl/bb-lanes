@@ -1,0 +1,1310 @@
+/*
+ * bb Lanes timeline. Grown from affectUI's Agent Lanes stylesheet (ui-al →
+ * bl), with every colour derived from bb's host tokens so light, dark and
+ * custom palettes all work. Override any --bl-* variable on .bl.
+ */
+
+.bl {
+  --bl-surface: var(--card);
+  --bl-ink: var(--foreground);
+  --bl-text: var(--muted-foreground);
+  --bl-muted: var(--subtle-foreground, var(--muted-foreground));
+  --bl-faint: color-mix(in oklab, var(--foreground) 38%, var(--bl-surface));
+  --bl-line: color-mix(in oklab, var(--foreground) 7%, var(--bl-surface));
+  --bl-line-strong: var(--border);
+  --bl-rail: color-mix(in oklab, var(--foreground) 44%, var(--bl-surface));
+  --bl-fill: color-mix(in oklab, var(--foreground) 10.5%, var(--bl-surface));
+  --bl-done: color-mix(in oklab, var(--foreground) 6%, var(--bl-surface));
+  --bl-done-fg: color-mix(in oklab, var(--muted-foreground) 92%, var(--bl-surface));
+  --bl-bar: color-mix(in oklab, var(--foreground) 17%, var(--bl-surface));
+  --bl-bar-failed: color-mix(in oklab, var(--destructive) 55%, var(--bl-surface));
+  --bl-bar-interrupted: color-mix(in oklab, var(--foreground) 30%, var(--bl-surface));
+
+  /* Running work uses bb's one timeline tint; blocks are opaque so curves pass beneath them. */
+  --bl-run: var(--timeline-accent);
+  --bl-run-bg: color-mix(in oklab, var(--bl-run) 15%, var(--bl-surface));
+  --bl-run-bg-hover: color-mix(in oklab, var(--bl-run) 21%, var(--bl-surface));
+  --bl-run-fg: color-mix(in oklab, var(--bl-run) 88%, var(--foreground));
+  --bl-run-edge: color-mix(in oklab, var(--bl-run) 78%, var(--bl-surface));
+  --bl-run-wash: color-mix(in oklab, var(--bl-run) 10%, transparent);
+  --bl-warn: var(--warning);
+  --bl-warn-bg: color-mix(in oklab, var(--warning) 17%, var(--bl-surface));
+  --bl-warn-bg-hover: color-mix(in oklab, var(--warning) 24%, var(--bl-surface));
+  --bl-warn-fg: var(--warning-text);
+  --bl-danger: var(--destructive);
+  --bl-danger-bg: color-mix(in oklab, var(--destructive) 11%, var(--bl-surface));
+  --bl-danger-bg-hover: color-mix(in oklab, var(--destructive) 16%, var(--bl-surface));
+  --bl-danger-fg: var(--destructive-text, var(--destructive));
+  --bl-shimmer: color-mix(in oklab, var(--bl-surface) 62%, transparent);
+  --bl-hatch: color-mix(in oklab, var(--foreground) 20%, transparent);
+
+  --bl-focus: color-mix(in oklab, var(--ring) 60%, transparent);
+  --bl-link: color-mix(in oklab, var(--foreground) 62%, var(--bl-surface));
+  --bl-hover-band: color-mix(in oklab, var(--foreground) 2.6%, transparent);
+  --bl-link-band: color-mix(in oklab, var(--bl-run) 7%, transparent);
+  --bl-highlight-band: color-mix(in oklab, var(--bl-run) 5.5%, transparent);
+  --bl-group-band: color-mix(in oklab, var(--foreground) 2.4%, transparent);
+  --bl-dim: 0.3;
+
+  --bl-tip-bg: color-mix(in oklab, var(--foreground) 95%, transparent);
+  --bl-tip-text: color-mix(in oklab, var(--bl-surface) 88%, transparent);
+  --bl-tip-strong: var(--bl-surface);
+  --bl-tip-muted: color-mix(in oklab, var(--bl-surface) 56%, transparent);
+  --bl-tip-line: color-mix(in oklab, var(--bl-surface) 14%, transparent);
+
+  --bl-shadow-color: var(--shadow-color, hsl(0 0% 20% / 0.1));
+  --bl-shadow: 0 0 0 1px var(--bl-line-strong), 0 1px 2px var(--bl-shadow-color);
+  --bl-pop-shadow: 0 0 0 1px var(--bl-line-strong), 0 2px 4px -1px var(--bl-shadow-color),
+    0 18px 40px -14px color-mix(in oklab, var(--bl-shadow-color) 100%, var(--bl-shadow-color));
+  --bl-tip-shadow: 0 12px 32px -10px var(--bl-shadow-color), 0 2px 6px -2px var(--bl-shadow-color);
+
+  --bl-radius: 7px;
+  --bl-inset: 10px;
+  --bl-ruler: 30px;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  container: bl-lanes / inline-size;
+  isolation: isolate;
+  color: var(--bl-text);
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.006em;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bl[data-density="compact"] {
+  --bl-inset: 7px;
+  --bl-radius: 6px;
+}
+
+:where(.dark) .bl {
+  --bl-shimmer: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --bl-line: color-mix(in oklab, var(--foreground) 9%, var(--bl-surface));
+  --bl-done: color-mix(in oklab, var(--foreground) 8.5%, var(--bl-surface));
+  --bl-fill: color-mix(in oklab, var(--foreground) 14%, var(--bl-surface));
+  --bl-bar: color-mix(in oklab, var(--foreground) 26%, var(--bl-surface));
+  --bl-run-bg: color-mix(in oklab, var(--bl-run) 22%, var(--bl-surface));
+  --bl-run-bg-hover: color-mix(in oklab, var(--bl-run) 29%, var(--bl-surface));
+  --bl-run-fg: color-mix(in oklab, var(--bl-run) 90%, var(--foreground));
+  --bl-warn-bg: color-mix(in oklab, var(--warning) 19%, var(--bl-surface));
+  --bl-danger-bg: color-mix(in oklab, var(--destructive) 20%, var(--bl-surface));
+  --bl-hover-band: color-mix(in oklab, var(--foreground) 3.6%, transparent);
+  --bl-group-band: color-mix(in oklab, var(--foreground) 3%, transparent);
+  --bl-tip-bg: color-mix(in oklab, var(--foreground) 96%, transparent);
+  --bl-dim: 0.34;
+}
+
+.bl *,
+.bl *::before,
+.bl *::after {
+  box-sizing: border-box;
+}
+:where(.bl) button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bl button:focus-visible,
+.bl [tabindex]:focus-visible {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: 1px;
+}
+.bl ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bl svg {
+  display: block;
+  flex: none;
+}
+.bl kbd {
+  font: inherit;
+}
+.bl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----- Frame: one scroll container, names column on the left ----- */
+
+.bl-frame {
+  --bl-names: var(--bl-names-w, 168px);
+  --bl-gutter: 18px;
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+@container bl-lanes (max-width: 520px) {
+  .bl-frame {
+    --bl-names: 52px;
+    --bl-gutter: 12px;
+  }
+}
+
+.bl-scroller {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bl-fill) transparent;
+}
+
+/* ----- Ruler ----- */
+
+.bl-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: var(--bl-names) minmax(0, 1fr) var(--bl-gutter);
+  height: var(--bl-ruler);
+  background: var(--bl-surface);
+}
+/* A soft edge where rows pass beneath the ruler. */
+.bl-ruler::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: linear-gradient(to bottom, var(--bl-surface), transparent);
+  pointer-events: none;
+}
+.bl-ruler-track {
+  position: relative;
+  min-width: 0;
+}
+.bl-ruler-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
+  mask-image: linear-gradient(to right, transparent 0, #000 28px);
+}
+.bl-ticks {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  animation: bl-fade 220ms ease both;
+}
+.bl-tick {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 3px;
+  border-left: 1px solid var(--bl-line);
+}
+.bl-tick[data-major] {
+  height: 5px;
+  border-left-color: color-mix(in oklab, var(--foreground) 16%, var(--bl-surface));
+}
+.bl-tick-label {
+  position: absolute;
+  bottom: 7px;
+  left: 0;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--bl-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+}
+.bl-ruler-nowclip,
+.bl-nowclip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: calc(-1 * var(--bl-gutter));
+  overflow: hidden;
+  pointer-events: none;
+}
+.bl-now-pin,
+.bl-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% - var(--bl-gutter));
+  will-change: transform;
+}
+.bl-now-pill {
+  position: absolute;
+  right: 0;
+  bottom: 6px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--bl-run-bg);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.01em;
+  color: var(--bl-run-fg);
+  translate: 50% 0;
+}
+.bl-now-pill::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 6px;
+  background: color-mix(in oklab, var(--bl-run) 45%, transparent);
+}
+
+/* Hovering the ruler: the clock time under the pointer, with a guide down the lanes. */
+.bl-hover-time {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--bl-names);
+  z-index: 7;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bl-hover-time[data-show] {
+  opacity: 1;
+}
+.bl-hover-time::before {
+  content: "";
+  position: absolute;
+  top: var(--bl-ruler);
+  bottom: 0;
+  left: -0.5px;
+  border-left: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+.bl-hover-label {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--bl-tip-bg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--bl-tip-strong);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  translate: -50% 0;
+}
+
+/* ----- Canvas: bands, names, track ----- */
+
+.bl-canvas {
+  position: relative;
+}
+.bl-bands,
+.bl-names {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.bl-bands {
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+.bl-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transition: background-color 160ms ease;
+}
+/* Quiet lane separators across the track, as in the reference. */
+.bl-band::after {
+  content: "";
+  position: absolute;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  bottom: 0;
+  height: 1px;
+  background: var(--bl-line);
+}
+.bl-band[data-kind="group"] {
+  background: var(--bl-group-band);
+}
+.bl-band[data-kind="group"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--bl-line);
+}
+.bl-band[data-kind="group"][data-first]::before {
+  display: none;
+}
+.bl-band[data-kind="group"]::after {
+  left: 0;
+  right: 0;
+}
+.bl-band[data-highlighted] {
+  background: var(--bl-highlight-band);
+}
+
+.bl-names {
+  width: var(--bl-names);
+  height: 100%;
+}
+.bl-name {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+.bl-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  cursor: grab;
+  touch-action: pan-y;
+}
+.bl[data-dragging] .bl-track,
+.bl[data-dragging] .bl-track * {
+  cursor: grabbing;
+}
+.bl[data-dragging] {
+  user-select: none;
+}
+
+/* Blocks fade out through the left edge as the window slides. */
+.bl-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+}
+.bl-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+  animation: bl-fade 220ms ease both;
+}
+.bl-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--bl-line);
+}
+.bl-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* ----- Hand-offs ----- */
+
+.bl-curves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: visible;
+  color: var(--bl-rail);
+  pointer-events: none;
+  transition: opacity 220ms ease 80ms;
+}
+.bl-curve {
+  fill: none;
+  stroke: var(--bl-rail);
+  stroke-width: 1px;
+  stroke-dasharray: 3 3;
+  transition:
+    opacity 160ms ease,
+    stroke 160ms ease;
+}
+.bl-curve[data-live] {
+  stroke: var(--bl-run-edge);
+  animation: bl-flow 900ms linear infinite;
+}
+.bl-curve[data-stub] {
+  stroke-dasharray: 2 3;
+}
+.bl-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border: 1.5px solid var(--bl-rail);
+  border-radius: 50%;
+  background: var(--bl-surface);
+  transition:
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+.bl-dot[data-live] {
+  border-color: var(--bl-run-edge);
+}
+
+/* ----- Lanes and blocks ----- */
+
+.bl-lane,
+.bl-grouptrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name, .bl-mark) {
+  transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bl[data-reflow] :is(.bl-curves, .bl-dot) {
+  opacity: 0;
+  transition: none;
+}
+
+.bl-slot {
+  position: absolute;
+  top: var(--bl-inset);
+  bottom: var(--bl-inset);
+  min-width: 6px;
+}
+/* Running and waiting blocks grow out of now from nothing; the now line clips them. */
+.bl-slot:is([data-status="running"], [data-status="waiting"]),
+.bl-slot:is([data-status="running"], [data-status="waiting"]) .bl-block {
+  min-width: 0;
+}
+.bl-slot[data-fresh]:not(:is([data-status="running"], [data-status="waiting"])) {
+  animation: bl-reveal 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bl-slot:has(.bl-block[data-status="waiting"]) {
+  z-index: 2;
+}
+
+.bl-block,
+.bl-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 6px;
+  overflow: hidden;
+  border-radius: var(--bl-radius);
+  white-space: nowrap;
+  container-type: inline-size;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease,
+    opacity 180ms ease 30ms,
+    box-shadow 160ms ease;
+}
+.bl-block {
+  --bl-block-bg: var(--bl-done);
+  padding: 0 9px;
+  background: var(--bl-block-bg);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-done-fg);
+}
+.bl-block:hover {
+  --bl-block-bg: var(--bl-fill);
+  transition-duration: 0ms, 300ms, 180ms, 160ms;
+}
+/* Long titles fade into the block's end instead of being cut. */
+.bl-block::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 22px;
+  background: linear-gradient(to right, transparent, var(--bl-block-bg) 60%);
+  pointer-events: none;
+}
+.bl-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.bl-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+}
+/* Tools: small glyphs side by side, before the title. */
+.bl-tools {
+  display: flex;
+  flex: none;
+  gap: 3px;
+}
+.bl-tool {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  opacity: 0.85;
+}
+.bl-glyph {
+  width: 12px;
+  height: 12px;
+}
+@container (max-width: 72px) {
+  .bl-tools {
+    display: none;
+  }
+}
+@container (max-width: 28px) {
+  .bl-content {
+    display: none;
+  }
+}
+
+.bl-block[data-status="running"] {
+  --bl-block-bg: var(--bl-run-bg);
+  color: var(--bl-run-fg);
+}
+.bl-block[data-status="running"]:hover {
+  --bl-block-bg: var(--bl-run-bg-hover);
+}
+/* The shimmer passes beneath the title, so the text stays crisp. */
+.bl-block[data-status="running"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat;
+  animation: bl-shimmer 2200ms ease-in-out infinite;
+  pointer-events: none;
+}
+.bl-block[data-status="waiting"] {
+  --bl-block-bg: var(--bl-warn-bg);
+  color: var(--bl-warn-fg);
+}
+.bl-block[data-status="waiting"]:hover {
+  --bl-block-bg: var(--bl-warn-bg-hover);
+}
+.bl-block[data-status="failed"] {
+  --bl-block-bg: var(--bl-danger-bg);
+  color: var(--bl-danger-fg);
+}
+.bl-block[data-status="failed"]:hover {
+  --bl-block-bg: var(--bl-danger-bg-hover);
+}
+/* Interrupted: a settled block whose end is hatched, as if cut off. */
+.bl-block[data-status="interrupted"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  width: min(16px, 45%);
+  background: repeating-linear-gradient(-45deg, var(--bl-hatch) 0 1.5px, transparent 1.5px 4.5px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
+  mask-image: linear-gradient(to right, transparent, #000 70%);
+  pointer-events: none;
+}
+.bl-block[data-open] {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 45%, transparent);
+}
+
+/* Clusters: several short turns too close to tell apart, drawn as a barcode
+ * of where each one ran (the gradient is set inline). */
+.bl-cluster {
+  justify-content: center;
+  background-color: var(--bl-done);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 14px;
+  color: var(--bl-text);
+}
+.bl-cluster:hover {
+  background-color: var(--bl-fill);
+}
+.bl-cluster .bl-label {
+  position: relative;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-surface);
+  box-shadow: 0 0 0 1px var(--bl-line);
+  font-variant-numeric: tabular-nums;
+}
+.bl-cluster[data-status="failed"] .bl-label {
+  color: var(--bl-danger-fg);
+}
+@container (max-width: 34px) {
+  .bl-cluster .bl-label {
+    display: none;
+  }
+}
+
+/* ----- Collapsed group: the merged activity strip ----- */
+
+.bl-strip {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 6px;
+}
+.bl-strip:hover {
+  background: var(--bl-hover-band);
+}
+.bl-wave {
+  width: 100%;
+  height: 100%;
+}
+.bl-wave path {
+  fill: var(--bl-rail);
+}
+.bl-wave [data-state="done"] {
+  fill: color-mix(in oklab, var(--foreground) 22%, var(--bl-surface));
+}
+.bl-wave [data-state="interrupted"] {
+  fill: color-mix(in oklab, var(--foreground) 30%, var(--bl-surface));
+}
+.bl-wave [data-state="failed"] {
+  fill: color-mix(in oklab, var(--destructive) 60%, var(--bl-surface));
+}
+.bl-wave [data-state="running"] {
+  fill: color-mix(in oklab, var(--bl-run) 70%, var(--bl-surface));
+}
+.bl-wave [data-state="waiting"] {
+  fill: var(--bl-warn);
+}
+
+/* ----- Now: the hairline, each open block's growing edge, the Needs you flag ----- */
+
+.bl-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -0.5px;
+  width: 1px;
+  background: color-mix(in oklab, var(--bl-run) 40%, transparent);
+}
+.bl-mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+}
+.bl-cap {
+  position: absolute;
+  top: var(--bl-inset);
+  bottom: var(--bl-inset);
+  right: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--bl-run-edge);
+}
+.bl-mark[data-status="waiting"] .bl-cap {
+  background: color-mix(in oklab, var(--bl-warn) 80%, var(--bl-surface));
+}
+.bl-flag {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--bl-warn-fg);
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+/* Only the mark pulses: the flag itself stays opaque over the block's title. */
+.bl-flag svg {
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+.bl[data-density="compact"] .bl-flag {
+  line-height: 16px;
+}
+
+/* ----- Popovers ----- */
+
+.bl-pop {
+  position: absolute;
+  z-index: 9;
+  animation: bl-in 180ms ease both;
+}
+.bl-pop[data-up] {
+  transform: translateY(-100%);
+  animation-name: bl-in-up;
+}
+
+/* What got done: a small dark tooltip (it turns light in dark mode, like the reference). */
+.bl-tip {
+  display: grid;
+  gap: 5px;
+  width: max-content;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 10px 12px 9px;
+  border-radius: 12px;
+  background: var(--bl-tip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--bl-tip-text);
+  translate: -50% 0;
+}
+.bl-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--bl-tip-muted);
+  white-space: nowrap;
+}
+.bl-tip-lane {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-tip-num {
+  font-variant-numeric: tabular-nums;
+}
+.bl-tip-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-tip-muted);
+}
+.bl-tip[data-status="running"] .bl-tip-dot {
+  background: var(--bl-run-edge);
+}
+.bl-tip[data-status="failed"] .bl-tip-dot {
+  background: var(--bl-danger);
+}
+.bl-tip[data-status="interrupted"] .bl-tip-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--bl-tip-muted);
+}
+.bl-tip-title {
+  font-weight: 500;
+  color: var(--bl-tip-strong);
+}
+.bl-tip-empty {
+  color: var(--bl-tip-muted);
+}
+.bl-tip-list {
+  display: grid;
+  gap: 2px;
+}
+.bl-tip-list li {
+  position: relative;
+  padding-left: 10px;
+}
+.bl-tip-list li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--bl-tip-muted);
+}
+.bl-tip-skeleton {
+  display: grid;
+  gap: 6px;
+  padding: 3px 0 2px;
+}
+.bl-tip-skeleton span {
+  height: 9px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bl-tip-line) 0%, color-mix(in oklab, var(--bl-surface) 26%, transparent) 50%, var(--bl-tip-line) 100%) 0 0 / 200% 100%;
+  animation: bl-skeleton 1300ms ease-in-out infinite;
+}
+.bl-tip-skeleton span:nth-child(1) {
+  width: 92%;
+}
+.bl-tip-skeleton span:nth-child(2) {
+  width: 74%;
+}
+.bl-tip-skeleton span:nth-child(3) {
+  width: 52%;
+}
+.bl-tip-recent {
+  display: grid;
+  gap: 2px;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--bl-tip-line);
+}
+.bl-tip-recent li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--bl-tip-text);
+}
+.bl-tip-recent li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bl-tip-glyph {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  opacity: 0.7;
+}
+.bl-tip-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--bl-tip-muted);
+}
+.bl-tip-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 3px;
+}
+.bl-tip-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--bl-tip-strong);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--bl-surface) 35%, transparent);
+  text-underline-offset: 2px;
+}
+.bl-tip-open--quiet {
+  color: var(--bl-tip-text);
+  text-decoration-color: transparent;
+}
+.bl-tip-open:hover {
+  text-decoration-color: currentColor;
+}
+.bl-tip-open kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bl-tip-line);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--bl-tip-muted);
+  text-decoration: none;
+}
+
+/* Decide in place. */
+.bl-ask {
+  display: grid;
+  gap: 3px;
+  width: 300px;
+  max-width: calc(100cqw - 16px);
+  padding: 13px 14px 14px;
+  border-radius: 14px;
+  background: var(--popover, var(--bl-surface));
+  box-shadow: var(--bl-pop-shadow);
+  color: var(--bl-text);
+}
+.bl-ask-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  color: var(--bl-warn-fg);
+  white-space: nowrap;
+}
+.bl-ask-meta {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 400;
+  color: var(--bl-muted);
+  text-overflow: ellipsis;
+}
+.bl-ask-meta::before {
+  content: "·";
+  margin: 0 4px 0 1px;
+}
+.bl-ask-title {
+  font-weight: 500;
+  color: var(--bl-ink);
+}
+.bl-ask-text {
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--bl-text);
+}
+.bl-ask-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.bl-ask-spacer {
+  flex: 1;
+}
+.bl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bl-ink);
+  white-space: nowrap;
+  transition: background-color 120ms ease;
+}
+.bl-btn:hover {
+  background: color-mix(in oklab, var(--foreground) 4%, var(--bl-surface));
+}
+.bl-btn--primary {
+  background: var(--primary);
+  box-shadow: none;
+  color: var(--primary-foreground);
+}
+.bl-btn--primary:hover {
+  background: color-mix(in oklab, var(--primary) 86%, var(--bl-surface));
+}
+.bl-link {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--bl-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+  text-underline-offset: 2px;
+}
+.bl-link:hover {
+  color: var(--bl-ink);
+}
+
+/* ----- Floating controls ----- */
+
+.bl-jump {
+  position: absolute;
+  right: calc(var(--bl-gutter) + 6px);
+  bottom: 16px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 5px 0 12px;
+  border-radius: 999px;
+  background: var(--bl-tip-bg);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bl-tip-strong);
+  opacity: 0;
+  translate: 0 10px;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    translate 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bl-jump[data-visible] {
+  opacity: 1;
+  translate: 0 0;
+  pointer-events: auto;
+}
+.bl-jump kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bl-tip-line);
+  font-size: 10.5px;
+  color: var(--bl-tip-muted);
+}
+.bl-jump-needs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid var(--bl-tip-line);
+  color: color-mix(in oklab, var(--warning) 70%, var(--bl-tip-strong));
+}
+.bl-jump-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+
+.bl-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--bl-names) - 4px);
+  z-index: 7;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.bl-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3.5px;
+  width: 1px;
+  background: var(--bl-line-strong);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.bl-resize:hover::after,
+.bl-resize:focus-visible::after,
+.bl[data-resizing] .bl-resize::after {
+  opacity: 1;
+}
+.bl-resize:focus-visible {
+  outline: none;
+}
+.bl[data-resizing],
+.bl[data-resizing] * {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* ----- Empty ----- */
+
+.bl-empty {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 260px;
+  padding: 32px 16px;
+  overflow: hidden;
+}
+.bl-empty-ghosts {
+  position: absolute;
+  inset: 24px 24px auto;
+  display: grid;
+  grid-auto-rows: 48px;
+  opacity: 0.55;
+  -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
+}
+.bl-empty-lane {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  align-items: center;
+}
+.bl-empty-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 12px;
+}
+.bl-empty-avatar {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bl-done);
+}
+.bl-empty-text {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bl-done);
+}
+.bl-empty-track {
+  position: relative;
+  height: 28px;
+}
+.bl-empty-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--bl-radius);
+  background: var(--bl-done);
+}
+.bl-empty-curve {
+  position: absolute;
+  inset: 0 0 0 148px;
+  width: calc(100% - 148px);
+  height: 192px;
+  overflow: visible;
+}
+.bl-empty-curve path {
+  fill: none;
+  stroke: var(--bl-line-strong);
+  stroke-width: 1px;
+  stroke-dasharray: 3 3;
+}
+.bl-empty-copy {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  max-width: 340px;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--bl-surface) 86%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  text-align: center;
+}
+.bl-empty-copy p {
+  margin: 0;
+}
+.bl-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--bl-ink);
+}
+.bl-empty-text-line {
+  margin-bottom: 10px !important;
+  font-size: 12.5px;
+  color: var(--bl-muted);
+}
+
+/* ----- Narrow: names shrink to avatars ----- */
+
+@container bl-lanes (max-width: 520px) {
+  .bl-tip {
+    max-width: 260px;
+  }
+  .bl-jump {
+    bottom: 12px;
+  }
+  .bl-empty-lane {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .bl-empty-text {
+    display: none;
+  }
+  .bl-empty-curve {
+    inset: 0 0 0 48px;
+    width: calc(100% - 48px);
+  }
+}
+
+/* ----- Motion ----- */
+
+@keyframes bl-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes bl-shimmer {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes bl-skeleton {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes bl-flow {
+  to {
+    stroke-dashoffset: -6;
+  }
+}
+@keyframes bl-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@keyframes bl-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% + 3px));
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+@keyframes bl-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes bl-reveal {
+  from {
+    opacity: 0.2;
+    clip-path: inset(0 100% 0 0 round var(--bl-radius));
+  }
+  to {
+    clip-path: inset(0 0 0 0 round var(--bl-radius));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bl *,
+  .bl *::before,
+  .bl *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
