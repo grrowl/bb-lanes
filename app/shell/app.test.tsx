@@ -41,6 +41,7 @@ async function loadApp() {
 function rpc(windowSnapshot = snapshot()) {
   return {
     lanes_window: () => windowSnapshot,
+    lanes_neighbors: () => ({ neighbors: {} }),
     lanes_block_detail: ({ threadId, blockId }: { threadId: string; blockId: string }) => ({
       blockId,
       threadId,

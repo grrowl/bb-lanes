@@ -1,5 +1,5 @@
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
-import type { LaneBlock, LaneHandoff, LanesSnapshot } from "../shared/model";
+import type { LaneBlock, LaneHandoff, LaneNeighbors, LanesSnapshot } from "../shared/model";
 import { emptyIndex, INDEX_VERSION, type IndexThread, type ThreadIndex } from "./indexer";
 
 type JsonRow = { json: string };
@@ -16,6 +16,7 @@ export class LanesStorage {
       `CREATE INDEX lane_handoffs_window ON lane_handoffs(at)`,
       `CREATE INDEX lane_handoffs_target ON lane_handoffs(to_thread_id)`,
       `CREATE INDEX lane_handoffs_source ON lane_handoffs(from_thread_id)`,
+      `CREATE INDEX lane_blocks_neighbors ON lane_blocks(thread_id, COALESCE(end, start), start, id)`,
     ]);
   }
   read(threadId: string): ThreadIndex {
@@ -84,6 +85,25 @@ export class LanesStorage {
       WHERE ((h.at >= ? AND h.at <= ?) OR b.end IS NULL OR (b.end >= ? AND b.start <= ?))${handoffScope}
       ORDER BY h.at, h.id`).all(since, generatedAt, since, generatedAt, ...(threadIds ?? []), ...(threadIds ?? [])) as JsonRow[]);
     return { generatedAt, since, blocks, handoffs, indexing };
+  }
+  neighbors(threadIds: string[], from: number, to: number): { neighbors: Record<string, LaneNeighbors> } {
+    // The expression index orders closed turns by end and open turns by start.
+    const previous = this.db.prepare(`SELECT json FROM lane_blocks
+      WHERE thread_id = ? AND COALESCE(end, start) < ?
+      ORDER BY COALESCE(end, start) DESC, start DESC, id DESC LIMIT 1`);
+    const next = this.db.prepare(`SELECT json FROM lane_blocks
+      WHERE thread_id = ? AND start > ? ORDER BY start, id LIMIT 1`);
+    const entries: [string, LaneNeighbors][] = [];
+    for (const threadId of new Set(threadIds)) {
+      const prevRow = previous.get(threadId, from) as JsonRow | undefined;
+      const nextRow = next.get(threadId, to) as JsonRow | undefined;
+      if (!prevRow && !nextRow) continue;
+      entries.push([threadId, {
+        prev: prevRow ? JSON.parse(prevRow.json) as LaneBlock : null,
+        next: nextRow ? JSON.parse(nextRow.json) as LaneBlock : null,
+      }]);
+    }
+    return { neighbors: Object.fromEntries(entries) };
   }
   open(): { block: LaneBlock; thread: IndexThread }[] {
     return (this.db.prepare(`SELECT b.json, t.metadata FROM lane_blocks b
