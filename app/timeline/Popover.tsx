@@ -106,7 +106,9 @@ export function BlockTooltip(props: TooltipProps) {
       ) : summary.length > 0 ? (
         <ul className="bl-tip-list">
           {summary.map((line, i) => (
-            <li key={i}>{line}</li>
+            <li key={i}>
+              <InlineCode text={line} />
+            </li>
           ))}
         </ul>
       ) : (
@@ -132,6 +134,25 @@ export function BlockTooltip(props: TooltipProps) {
         </button>
       </span>
     </div>
+  );
+}
+
+/** Agents write `code` in their summaries; draw it as code, not as backticks. */
+function InlineCode({ text }: { text: string }) {
+  const parts = text.split(/`([^`]+)`/);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <code key={i} className="bl-tip-code">
+            {part}
+          </code>
+        ) : (
+          part
+        ),
+      )}
+    </>
   );
 }
 

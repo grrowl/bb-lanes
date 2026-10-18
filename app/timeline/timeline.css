@@ -232,6 +232,11 @@
   grid-template-columns: var(--bl-names) minmax(0, 1fr) var(--bl-gutter);
   height: 26px;
   background: var(--bl-card);
+  transition: box-shadow 160ms ease;
+}
+/* Rows scrolled under the ruler: a lane separator's hairline marks the edge. */
+.bl[data-scrolled] .bl-ruler {
+  box-shadow: 0 0.5px 0 var(--bl-line);
 }
 .bl-ruler-track {
   position: relative;
@@ -624,6 +629,11 @@
 .bl-block:hover {
   background: var(--bl-fill);
 }
+/* Pressed: the open block's tone, for the moment of the click. */
+.bl-block:active,
+.bl-cluster:active {
+  filter: brightness(0.97);
+}
 .bl-block[data-status="running"] {
   position: relative;
   background: var(--bl-run-bg);
@@ -758,21 +768,21 @@
 .bl-wave path {
   shape-rendering: crispEdges;
 }
+/* The strip is a summary, so its states are quieter than the blocks they stand for. */
 .bl-wave [data-state="done"] {
-  fill: var(--bl-fill);
+  fill: color-mix(in srgb, var(--bl-rail) 55%, transparent);
 }
 .bl-wave [data-state="interrupted"] {
-  fill: var(--bl-rail);
+  fill: color-mix(in srgb, var(--bl-rail) 80%, transparent);
 }
 .bl-wave [data-state="failed"] {
-  fill: var(--bl-bar-failed);
+  fill: color-mix(in srgb, var(--bl-danger-fg) 38%, transparent);
 }
 .bl-wave [data-state="running"] {
-  fill: var(--bl-run-edge);
+  fill: color-mix(in srgb, var(--bl-run-fg) 45%, transparent);
 }
 .bl-wave [data-state="waiting"] {
-  fill: var(--bl-warn-fg);
-  opacity: 0.6;
+  fill: color-mix(in srgb, var(--bl-warn-fg) 55%, transparent);
 }
 
 /* Now: a small label over the right edge, where running work meets the clock */
@@ -922,6 +932,20 @@
   position: relative;
   padding-left: 10px;
 }
+/* Real summaries run longer than upstream's: each point keeps to three lines. */
+.bl-tip-list li {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.bl-tip-code {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bl-tip-text) 12%, transparent);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+}
 .bl-tip-list li::before {
   content: "";
   position: absolute;
@@ -978,6 +1002,12 @@
   text-decoration-color: var(--bl-tip-rule);
   text-underline-offset: 2px;
 }
+.bl-tip-open:hover {
+  text-decoration-color: currentColor;
+}
+.bl-tip-open:active {
+  opacity: 0.7;
+}
 .bl-tip-open--quiet {
   color: var(--bl-tip-text);
 }
@@ -1020,6 +1050,9 @@
 .bl-btn:hover {
   background: var(--bl-wash);
 }
+.bl-btn:active {
+  background: var(--bl-fill);
+}
 .bl-btn--primary {
   background: var(--bl-solid);
   box-shadow: none;
@@ -1027,6 +1060,10 @@
 }
 .bl-btn--primary:hover {
   background: var(--bl-solid-hover);
+}
+.bl-btn--primary:active {
+  background: var(--bl-solid-hover);
+  filter: brightness(0.92);
 }
 .bl-link {
   font-size: 12px;
@@ -1074,6 +1111,14 @@
 }
 .bl-jump:hover {
   color: var(--bl-strong);
+}
+.bl-jump:active {
+  background: var(--bl-wash);
+}
+@media (pointer: coarse) {
+  .bl-jump kbd {
+    display: none;
+  }
 }
 .bl-jump kbd {
   padding: 0 5px;
@@ -1280,12 +1325,13 @@
   display: grid;
   justify-items: center;
   gap: 2px;
-  max-width: 320px;
+  max-width: 360px;
   padding: 18px 22px;
   border-radius: 14px;
   background: var(--bl-card);
   box-shadow: var(--bl-pop);
   text-align: center;
+  text-wrap: balance;
 }
 .bl-empty-copy p {
   margin: 0;

@@ -825,6 +825,7 @@ export function LanesTimeline(props: TimelineProps) {
     "data-dragging": dragging ? "" : undefined,
     "data-reflow": reflowing ? "" : undefined,
     "data-narrow": narrow ? "" : undefined,
+    "data-scrolled": scroll.top > 0 ? "" : undefined,
     style: rootStyle,
     role: "region",
     "aria-label": "Agent lanes",

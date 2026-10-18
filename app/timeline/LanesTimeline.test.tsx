@@ -148,7 +148,7 @@ describe("LanesTimeline", () => {
     const onViewportChange = vi.fn();
     setup({ rows: [], onViewportChange });
     expect(screen.getByText("No agent activity in the last 15m")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Show the last 1h" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show last 1h" }));
     expect(onViewportChange).toHaveBeenCalledWith(expect.objectContaining({ span: 60 * MINUTE, live: true }));
   });
 
