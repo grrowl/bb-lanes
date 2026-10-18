@@ -35,21 +35,22 @@ export interface Preferences {
   namesWidth: number;
 }
 
-export function parsePreferences(raw: unknown): Preferences {
-  const source = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {};
-  return preferencesSchema.parse(source);
+/** `defaults` fill fields the stored value lacks (a surface's own starting point). */
+export function parsePreferences(raw: unknown, defaults: Partial<Preferences> = {}): Preferences {
+  const stored = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? raw : {};
+  return preferencesSchema.parse({ ...defaults, ...stored });
 }
 
 export function preferencesKey(pluginId: string, surface: string): string {
   return `${pluginId}:${surface}:preferences`;
 }
 
-export function readPreferences(key: string): Preferences {
+export function readPreferences(key: string, defaults: Partial<Preferences> = {}): Preferences {
   try {
     const stored = window.localStorage.getItem(key);
-    return parsePreferences(stored === null ? null : JSON.parse(stored));
+    return parsePreferences(stored === null ? null : JSON.parse(stored), defaults);
   } catch {
-    return parsePreferences(null);
+    return parsePreferences(null, defaults);
   }
 }
 

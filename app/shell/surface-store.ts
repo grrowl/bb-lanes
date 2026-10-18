@@ -31,14 +31,23 @@ export type SurfaceKind = "lanes" | "team-lanes";
 
 const PERSIST_DELAY_MS = 250;
 
+/** A team panel shows a handful of related threads: all of them, as one tree. */
+const SURFACE_DEFAULTS: Record<SurfaceKind, Partial<Preferences>> = {
+  lanes: {},
+  "team-lanes": { filter: "all", groupMode: "none" },
+};
+
 class SurfaceStore {
   private state: SurfaceState;
   private readonly listeners = new Set<() => void>();
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly preferencesStorageKey: string) {
+  constructor(
+    private readonly preferencesStorageKey: string,
+    defaults: Partial<Preferences>,
+  ) {
     this.state = {
-      ...readPreferences(preferencesStorageKey),
+      ...readPreferences(preferencesStorageKey, defaults),
       live: true,
       end: 0,
       query: "",
@@ -89,7 +98,7 @@ function storeFor(pluginId: string, kind: SurfaceKind, scope: string): SurfaceSt
   const key = `${pluginId}\u0000${kind}\u0000${scope}`;
   let store = stores.get(key);
   if (store === undefined) {
-    store = new SurfaceStore(preferencesKey(pluginId, kind));
+    store = new SurfaceStore(preferencesKey(pluginId, kind), SURFACE_DEFAULTS[kind]);
     stores.set(key, store);
   }
   return store;

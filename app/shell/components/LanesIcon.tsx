@@ -1,0 +1,13 @@
+/** bb has no Gantt glyph, so Lanes draws its own: three staggered turns. */
+export const LANES_ICON_NAME = "ChartGantt";
+
+export function LanesIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M4 4v16h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="7" y="6.25" width="7" height="3" rx="1.5" fill="currentColor" />
+      <rect x="10" y="10.75" width="8.5" height="3" rx="1.5" fill="currentColor" opacity="0.7" />
+      <rect x="8.5" y="15.25" width="5" height="3" rx="1.5" fill="currentColor" opacity="0.45" />
+    </svg>
+  );
+}
