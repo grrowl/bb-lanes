@@ -57,6 +57,11 @@ export interface LaneBlock {
   threadId: string;
   /** The model id that ran the turn, when known. */
   model?: string | null;
+  /**
+   * Event sequence of the input that started the turn (its `client/turn/requested`,
+   * else `turn/started`). bb's thread view can scroll to this message.
+   */
+  seq?: number | null;
   start: number;
   /** Null while the turn is open. */
   end: number | null;

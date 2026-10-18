@@ -377,7 +377,7 @@
   width: 100%;
   overflow: visible;
   pointer-events: none;
-  transition: opacity 220ms ease 80ms;
+  transition: opacity 120ms ease;
 }
 /* Hand-off lines: the reference's 1px rail, with the stroke, caps and colour
  * fixed per kind in HANDOFF_LINES: Created red solid, Messaged blue dashed,

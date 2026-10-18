@@ -20,6 +20,8 @@ export interface IndexThread {
 }
 interface InputRequest {
   id: string;
+  /** Event sequence of the request; bb's thread view can scroll to it. */
+  seq: number;
   at: number;
   prompt: string;
   model: string | null;
@@ -42,7 +44,7 @@ export interface IndexedTurn {
   syntheticEnd: boolean;
 }
 /** Bump when folding changes turns or handoffs; stored indexes from older versions are rebuilt. */
-export const INDEX_VERSION = 3;
+export const INDEX_VERSION = 4;
 
 export interface ThreadIndex {
   version: number;
@@ -156,6 +158,7 @@ function applyRequest(turn: IndexedTurn, request: InputRequest) {
   turn.prompt = request.prompt;
   turn.block.title = promptTitle(request.prompt);
   turn.block.model = request.model;
+  turn.block.seq = request.seq;
   turn.block.source = request.source;
   turn.block.initiator = request.initiator;
   turn.block.senderThreadId = request.senderThreadId;
@@ -184,7 +187,7 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
         const isChildEnd = data.initiator === "system"
           && (data.systemMessageKind === "child-completed" || data.systemMessageKind === "child-failed")
           && subject.kind === "thread";
-        state.requests.push({ id, at: event.createdAt, prompt: promptText(data.input).slice(0, 600),
+        state.requests.push({ id, seq: event.seq, at: event.createdAt, prompt: promptText(data.input).slice(0, 600),
           model: string(object(data.execution).model) || string(data.model) || null,
           source: string(data.source) || "send", initiator: data.initiator === "agent" || data.initiator === "system" ? data.initiator : "user",
           senderThreadId: string(data.senderThreadId) || null, assignedTo: null,
@@ -196,7 +199,7 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
     if (!turnId || state.removedTurnIds.includes(turnId)) continue;
     if (event.type === "turn/started" && !state.turns[turnId]) {
       const turn: IndexedTurn = {
-        block: { id: turnId, threadId: thread.id, start: event.createdAt, end: null,
+        block: { id: turnId, threadId: thread.id, seq: event.seq, start: event.createdAt, end: null,
           status: "running", title: "", initiator: "system", source: "unknown", senderThreadId: null,
           tools: [], counts: { commands: 0, edits: 0, tools: 0, delegations: 0, messages: 0 }, ask: null },
         prompt: "", startSeq: event.seq, endSeq: null, acceptedRequestIds: [], fallbackRequestId: null,

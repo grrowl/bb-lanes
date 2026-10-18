@@ -33,6 +33,7 @@ import { namesColumnWidth } from "./preferences";
 import { useSurface, type SurfaceKind } from "./surface-store";
 import { SECOND, SPAN_PRESETS } from "./time";
 import "./shell.css";
+import { revealTurn } from "./data/revealTurn";
 
 /** Below this pane width the toolbar condenses into one menu. */
 const CONDENSED_WIDTH = 640;
@@ -319,7 +320,10 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
   );
 
   const onOpenThread = useCallback(
-    (threadId: string, options: { split: boolean }) => threadActions.open(threadId, { split: options.split }),
+    (threadId: string, options: { split: boolean; seq?: number | null }) => {
+      threadActions.open(threadId, { split: options.split });
+      if (typeof options.seq === "number") revealTurn(threadId, options.seq);
+    },
     [threadActions],
   );
   const onToggleRow = useCallback(
