@@ -176,9 +176,12 @@ export function LaneHeaderCell({
   const inset = 12;
   const centre = (depth: number) => inset + depth * step + avatar / 2 - 0.5;
 
+  // Lanes stays on screen: a plain click opens the thread beside it, and
+  // ⌘/Ctrl-click opens it in place. Where splits are off, bb falls back to
+  // ordinary navigation.
   const openFromClick = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    actions.open(thread.id, event.metaKey || event.ctrlKey);
+    actions.open(thread.id, !(event.metaKey || event.ctrlKey));
   };
 
   return (
@@ -259,17 +262,25 @@ export function LaneHeaderCell({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="min-w-48">
-        <ContextMenuItem onSelect={() => actions.open(thread.id, false)}>
-          <Icon name="MessageSquare" aria-hidden />
-          Open
-        </ContextMenuItem>
         {split.isAvailable ? (
-          <ContextMenuItem onSelect={() => actions.open(thread.id, true)}>
-            <Icon name="Columns2" aria-hidden />
-            Open in split
-            <ContextMenuShortcut>⌘ click</ContextMenuShortcut>
+          <>
+            <ContextMenuItem onSelect={() => actions.open(thread.id, true)}>
+              <Icon name="Columns2" aria-hidden />
+              Open beside
+              <ContextMenuShortcut>Click</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => actions.open(thread.id, false)}>
+              <Icon name="MessageSquare" aria-hidden />
+              Open here
+              <ContextMenuShortcut>⌘ Click</ContextMenuShortcut>
+            </ContextMenuItem>
+          </>
+        ) : (
+          <ContextMenuItem onSelect={() => actions.open(thread.id, false)}>
+            <Icon name="MessageSquare" aria-hidden />
+            Open
           </ContextMenuItem>
-        ) : null}
+        )}
         {row.hasChildren ? (
           <ContextMenuItem onSelect={() => actions.toggleLane(thread.id)}>
             <Icon name={row.collapsed ? "Eye" : "EyeOff"} aria-hidden />

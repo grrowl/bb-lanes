@@ -4,7 +4,8 @@
 // per surface instead of React context.
 import { useMemo, useSyncExternalStore } from "react";
 import { experimental_usePluginId } from "@get-bb/plugin-sdk/app";
-import type { RowDensity, Viewport } from "../../shared/view";
+import type { HandoffKind } from "../../shared/model";
+import { DEFAULT_LINE_STYLES, type HandoffLineStyle, type RowDensity, type Viewport } from "../../shared/view";
 import type { GroupMode, LaneFilter } from "./grouping/types";
 import {
   NAMES_WIDTH_MAX,
@@ -78,7 +79,7 @@ class SurfaceStore {
     if (this.persistTimer !== null) clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      const { groupMode, filter, span, density, collapsedGroups, collapsedLanes, namesWidth } = this.state;
+      const { groupMode, filter, span, density, collapsedGroups, collapsedLanes, namesWidth, lineStyles } = this.state;
       writePreferences(this.preferencesStorageKey, {
         groupMode,
         filter,
@@ -87,6 +88,7 @@ class SurfaceStore {
         collapsedGroups,
         collapsedLanes,
         namesWidth,
+        lineStyles,
       });
     }, PERSIST_DELAY_MS);
   }
@@ -122,6 +124,8 @@ export interface SurfaceActions {
   setGroupsCollapsed(ids: readonly string[], collapsed: boolean): void;
   setNamesWidth(width: number): void;
   setGroupMenuOpen(open: boolean): void;
+  setLineStyle(kind: HandoffKind, patch: Partial<HandoffLineStyle>): void;
+  resetLineStyles(): void;
 }
 
 function bindActions(store: SurfaceStore): SurfaceActions {
@@ -148,6 +152,11 @@ function bindActions(store: SurfaceStore): SurfaceActions {
     setNamesWidth: (width) =>
       store.update({ namesWidth: Math.round(Math.min(NAMES_WIDTH_MAX, Math.max(NAMES_WIDTH_MIN, width))) }),
     setGroupMenuOpen: (groupMenuOpen) => store.update({ groupMenuOpen }),
+    setLineStyle: (kind, patch) =>
+      store.update((state) => ({
+        lineStyles: { ...state.lineStyles, [kind]: { ...state.lineStyles[kind], ...patch } },
+      })),
+    resetLineStyles: () => store.update({ lineStyles: DEFAULT_LINE_STYLES }),
   };
 }
 
