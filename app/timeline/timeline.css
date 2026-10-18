@@ -236,6 +236,7 @@
 .bl-ruler-track {
   position: relative;
   min-width: 0;
+  touch-action: pan-y;
 }
 .bl-ruler-clip {
   position: absolute;
@@ -1317,6 +1318,56 @@
   from {
     opacity: 0;
   }
+}
+
+/* Narrow panes: lanes name themselves in a caption above their blocks, and
+ * group rows run the whole width, since an open group's track is empty. */
+.bl-captions {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bl-caption {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--bl-text);
+  white-space: nowrap;
+}
+.bl-caption-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-caption-state {
+  flex: none;
+}
+.bl-caption[data-state="waiting"] .bl-caption-state {
+  color: var(--bl-warn-fg);
+}
+.bl-caption[data-state="failed"] .bl-caption-state {
+  color: var(--bl-danger-fg);
+}
+.bl[data-narrow] .bl-slot {
+  top: 22px;
+  bottom: 6px;
+}
+.bl[data-narrow] .bl-name[data-kind="group"] {
+  z-index: 4;
+  width: calc(100cqi - var(--bl-gutter));
+}
+.bl[data-narrow] .bl-grouptrack {
+  display: none;
 }
 
 /* Narrow containers: the names column shrinks to the avatars */

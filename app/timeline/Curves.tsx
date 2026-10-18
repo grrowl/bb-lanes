@@ -24,7 +24,7 @@ export interface CurvesProps {
 export const Curves = memo(function Curves({ curves, layout, anchor, span, width, uid }: CurvesProps) {
   const unitsPerPx = 1000 / Math.max(1, width);
   const x = (t: number) => layerPercent(t, anchor, span) * 10;
-  const yOf = (row: number) => layout.tops[row]! + layout.heights[row]! / 2;
+  const yOf = (row: number) => layout.mids[row]!;
   const paths = curves.map((curve) => {
     const style = HANDOFF_LINES[curve.handoff.kind];
     const color = style.color;
@@ -93,7 +93,7 @@ export const Curves = memo(function Curves({ curves, layout, anchor, span, width
 
 /** The caps at either end of each line, from HANDOFF_LINES: a dot, a ring, or an arrow into the target. */
 export const CurveCaps = memo(function CurveCaps({ curves, layout, anchor, span }: Omit<CurvesProps, "width" | "uid">) {
-  const yOf = (row: number) => layout.tops[row]! + layout.heights[row]! / 2;
+  const yOf = (row: number) => layout.mids[row]!;
   return (
     <>
       {curves.map((curve) => {

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { LaneBlock } from "../../shared/model";
 import type { GroupRow, LaneRow, TimelineProps } from "../../shared/view";
-import { HeaderCell, JumpToNow, LineTip, RowBands, ScrubBar } from "./Chrome";
+import { HeaderCell, JumpToNow, LaneCaptions, LineTip, RowBands, ScrubBar } from "./Chrome";
 import { ViewController, type Frame } from "./controller";
 import { CurveCaps, Curves } from "./Curves";
 import { EmptyState } from "./EmptyState";
@@ -74,8 +74,10 @@ export function LanesTimeline(props: TimelineProps) {
   latest.current = props;
   const describe = useCallback<Describe>((id) => latest.current.describeThread(id), []);
 
+  // Below 520px the names column is avatars only and each lane gains a caption line.
+  const [narrow, setNarrow] = useState(false);
   const index = useMemo(() => indexBlocks(blocks), [blocks]);
-  const layout = useMemo(() => layoutRows(rows, density), [rows, density]);
+  const layout = useMemo(() => layoutRows(rows, density, narrow), [rows, density, narrow]);
   const hasOpen = useMemo(() => blocks.some((b) => b.end === null), [blocks]);
 
 
@@ -143,7 +145,6 @@ export function LanesTimeline(props: TimelineProps) {
   const hoverLineRef = useRef<HTMLDivElement>(null);
   const hoverLabelRef = useRef<HTMLSpanElement>(null);
   const [scroll, setScroll] = useState({ top: 0, height: 0 });
-  const [narrow, setNarrow] = useState(false);
 
   const registerMoving = useRegistrar(controller.moving);
   const registerTicks = useRegistrar(controller.ticks);
@@ -300,16 +301,20 @@ export function LanesTimeline(props: TimelineProps) {
   );
   const [reflowing, setReflowing] = useState(false);
   const firstPlacement = useRef(true);
+  // Crossing the narrow width re-measures rows; that is a resize, not a re-flow.
+  const placedNarrow = useRef(narrow);
   useLayoutEffect(() => {
+    const resized = placedNarrow.current !== narrow;
+    placedNarrow.current = narrow;
     if (firstPlacement.current) {
       firstPlacement.current = false;
       return;
     }
-    if (performance.now() - lastTimeMove.current < 600) return;
+    if (resized || performance.now() - lastTimeMove.current < 600) return;
     setReflowing(true);
     const timer = window.setTimeout(() => setReflowing(false), 320);
     return () => window.clearTimeout(timer);
-  }, [rowPlacement]);
+  }, [rowPlacement, narrow]);
 
   // ----- Navigation model -----
 
@@ -580,8 +585,10 @@ export function LanesTimeline(props: TimelineProps) {
     }
   };
 
-  // Touch: horizontal drags pan, vertical ones scroll the rows natively.
+  // Touch: horizontal drags pan, vertical ones scroll the rows natively. The
+  // ruler pans too, so a drag anywhere over time moves time.
   useTouchPan(trackRef, controller);
+  useTouchPan(rulerTrackRef, controller);
 
   const hoverFrame = useRef(0);
   const lineTipRef = useRef<HTMLDivElement>(null);
@@ -850,6 +857,7 @@ export function LanesTimeline(props: TimelineProps) {
             <div
               ref={rulerTrackRef}
               className="bl-ruler-track"
+              data-no-sidebar-swipe=""
               onPointerMove={onRulerPointerMove}
               onPointerLeave={onRulerPointerLeave}
             >
@@ -895,6 +903,8 @@ export function LanesTimeline(props: TimelineProps) {
             <div
               ref={trackRef}
               className="bl-track"
+              // bb opens its sidebar on a rightward swipe; over time it pans instead.
+              data-no-sidebar-swipe=""
               onPointerDown={onTrackPointerDown}
               onPointerMove={onTrackPointerMove}
               onPointerUp={onTrackPointerUp}
@@ -955,6 +965,7 @@ export function LanesTimeline(props: TimelineProps) {
                   <CurveCaps curves={curves} layout={layout} anchor={activeFrame.anchor} span={activeFrame.span} />
                 </div>
               </div>
+              {narrow && <LaneCaptions layout={layout} renderedRows={renderedRows} describe={describe} />}
               <div className="bl-nowclip" aria-hidden="true">
                 <div ref={registerNow} className="bl-now">
                   <span className="bl-now-line" />

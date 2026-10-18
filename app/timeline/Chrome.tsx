@@ -83,6 +83,37 @@ export function HeaderCell({
   );
 }
 
+/**
+ * Narrow panes show avatars only, so each lane names itself in a caption
+ * pinned to the left of its track, above its blocks. Urgent lanes add their
+ * state, as the tag beside a name would.
+ */
+export function LaneCaptions({
+  layout,
+  renderedRows,
+  describe,
+}: {
+  layout: RowLayout;
+  renderedRows: number[];
+  describe: Describe;
+}) {
+  return (
+    <div className="bl-captions" aria-hidden="true">
+      {renderedRows.map((i) => {
+        const row = layout.rows[i]!;
+        if (row.kind !== "lane") return null;
+        const state = row.state === "waiting" ? "Needs you" : row.state === "failed" ? "Failed" : null;
+        return (
+          <span key={rowKey(row)} className="bl-caption" data-state={row.state} style={{ transform: `translateY(${layout.tops[i]}px)` }}>
+            <span className="bl-caption-title">{describe(row.id).title}</span>
+            {state && <span className="bl-caption-state">{state}</span>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The small dark chip that names a hovered hand-off line. */
 export const LineTip = forwardRef<
   HTMLDivElement,
@@ -119,6 +150,7 @@ export function ScrubBar({ controller }: { controller: ViewController }) {
     <div
       className="bl-scrub"
       aria-hidden="true"
+      data-no-sidebar-swipe=""
       onPointerDown={(event) => {
         if (event.button !== 0) return;
         const bar = event.currentTarget.getBoundingClientRect();

@@ -10,16 +10,26 @@ import type { Row, RowDensity } from "../../shared/view";
 export interface RowMetrics {
   lane: number;
   group: number;
+  /** Where a lane's blocks are centred, from the lane's top: hand-off lines attach there. */
+  laneMid: number;
 }
 
-export function rowMetrics(density: RowDensity): RowMetrics {
-  return density === "compact" ? { lane: 36, group: 28 } : { lane: 48, group: 32 };
+/**
+ * Upstream's rows: 48px with a 28px block, or a 36px compact row. A narrow
+ * pane shows avatars only, so each lane gains a caption line above its
+ * blocks: 6px, the 14px caption, 2px, then upstream's 28px block and 6px.
+ */
+export function rowMetrics(density: RowDensity, narrow = false): RowMetrics {
+  if (narrow) return { lane: 56, group: 32, laneMid: 36 };
+  return density === "compact" ? { lane: 36, group: 28, laneMid: 18 } : { lane: 48, group: 32, laneMid: 24 };
 }
 
 export interface RowLayout {
   rows: Row[];
   tops: number[];
   heights: number[];
+  /** Where hand-off lines attach in each row: a lane's block centre, a group row's middle. */
+  mids: number[];
   total: number;
   /** Row index of each visible lane, by thread id. */
   laneRowByThread: Map<string, number>;
@@ -30,10 +40,11 @@ export interface RowLayout {
   proxyRowByThread: Map<string, number>;
 }
 
-export function layoutRows(rows: Row[], density: RowDensity): RowLayout {
-  const metrics = rowMetrics(density);
+export function layoutRows(rows: Row[], density: RowDensity, narrow = false): RowLayout {
+  const metrics = rowMetrics(density, narrow);
   const tops: number[] = new Array(rows.length);
   const heights: number[] = new Array(rows.length);
+  const mids: number[] = new Array(rows.length);
   const laneRowByThread = new Map<string, number>();
   const proxyRowByThread = new Map<string, number>();
   const proxyDepth = new Map<string, number>();
@@ -42,6 +53,7 @@ export function layoutRows(rows: Row[], density: RowDensity): RowLayout {
     const height = row.kind === "group" ? metrics.group : metrics.lane;
     tops[index] = y;
     heights[index] = height;
+    mids[index] = y + (row.kind === "group" ? height / 2 : metrics.laneMid);
     y += height;
     if (row.kind === "lane") laneRowByThread.set(row.id, index);
     const hidden =
@@ -60,7 +72,7 @@ export function layoutRows(rows: Row[], density: RowDensity): RowLayout {
     }
   });
   for (const threadId of laneRowByThread.keys()) proxyRowByThread.delete(threadId);
-  return { rows, tops, heights, total: y, laneRowByThread, proxyRowByThread };
+  return { rows, tops, heights, mids, total: y, laneRowByThread, proxyRowByThread };
 }
 
 export function rowKey(row: Row): string {
