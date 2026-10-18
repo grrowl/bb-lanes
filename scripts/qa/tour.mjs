@@ -1,7 +1,8 @@
-// A tour of Lanes in the live bb at 1440×900, light and dark: the pane, a
-// hovered block, the tooltip, the decision card (when something waits), a
-// hovered hand-off line, a pan back in time, a zoom, the menus, and the team
-// panel beside a thread. Screenshots go to <outDir>/<step>-<scheme>.png.
+// A tour of Lanes in the live bb at 1440×900, light and dark: the pane at 15
+// minutes and at an hour, a hovered block, the tooltip, the decision card
+// (when something waits), a hovered hand-off line, the menus, a pan back in
+// time, a zoom, and the team panel beside a thread. Screenshots go to
+// <outDir>/<step>-<scheme>.png.
 //
 //   PLAYWRIGHT_DIR=/tmp/lanes-qa-tools node scripts/qa/tour.mjs [outDir]
 import { mkdirSync } from "node:fs";
@@ -37,13 +38,20 @@ const centreOf = (page, selector) =>
   }, selector);
 
 const shot = (page, step, scheme) => page.screenshot({ path: join(out, `${step}-${scheme}.png`) });
-const rest = (page) => page.mouse.move(720, 890);
+// Park the pointer in the title bar, so nothing in the pane shows hover.
+const rest = (page) => page.mouse.move(720, 18);
 
 const browser = await launch();
 try {
   for (const scheme of ["light", "dark"]) {
     const page = await pane(browser, scheme);
     await shot(page, "pane", scheme);
+    // The last hour shows more of a day's work; the rest of the tour runs on it.
+    await page.keyboard.press("2");
+    await page.waitForTimeout(1200);
+    await rest(page);
+    await page.waitForTimeout(300);
+    await shot(page, "pane-1h", scheme);
 
     // Blocks slide with the clock, so aim at the widest one's centre rather than wait for it to settle.
     const block = await centreOf(page, ".bl-block[data-status=done]");
@@ -108,6 +116,23 @@ try {
     await page.keyboard.up("Control");
     await page.waitForTimeout(700);
     await shot(page, "zoomed", scheme);
+
+    // The team panel, beside the first lane that has sub-threads.
+    const thread = await page.evaluate(() => {
+      const cell = [...document.querySelectorAll(".lanes-agent")].find((c) => c.querySelector(".lanes-disclose"));
+      return cell?.querySelector("a.lanes-name")?.getAttribute("href") ?? null;
+    });
+    if (thread) {
+      await page.goto(`${BB}${thread}`, { waitUntil: "networkidle" });
+      await page.waitForTimeout(1200);
+      const show = page.locator("button[aria-label^='Show right panel']");
+      if (await show.count()) await show.click();
+      await page.locator("button[aria-label^='Open new tab']").click();
+      await page.getByText("Team lanes", { exact: true }).first().click();
+      await page.waitForSelector(".lanes-tray .bl-track", { timeout: 10000 });
+      await page.waitForTimeout(2000);
+      await shot(page, "team-panel", scheme);
+    }
     await page.close();
   }
 } finally {

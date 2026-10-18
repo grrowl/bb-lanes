@@ -4,13 +4,16 @@
 // the raw measurements and slow-motion contact sheets. Frame sequences slow
 // CSS animations and transitions with CDP's Animation.setPlaybackRate, so
 // each screenshot lands on its animation time; the demo clocks are untouched.
+// Pages never connect Vite's HMR socket, so edits elsewhere in the worktree
+// cannot reload a page mid-check.
 // Needs both dev servers running:
 //   npx vite --config reference/affectui-agent-lanes/live/vite.config.mjs
 //   npx vite --config app/timeline/harness/vite.config.ts
 //   PLAYWRIGHT_DIR=/tmp/lanes-qa-tools node scripts/qa/interactions.mjs [outDir]
+import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { HARNESS, UPSTREAM, launch, open, sideBySide } from "./browser.mjs";
+import { HARNESS, UPSTREAM, launch } from "./browser.mjs";
 
 const out = process.argv[2] ?? "/tmp/lanes-fid/interactions";
 mkdirSync(out, { recursive: true });
@@ -80,14 +83,28 @@ const near = (a, b, tolerance) => Math.abs(a - b) <= tolerance;
 
 // ----- Pages -----
 
+/** Vite's client gets a socket that never opens: no hot updates, no reloads. */
+function noHmr() {
+  const Socket = window.WebSocket;
+  window.WebSocket = new Proxy(Socket, {
+    construct: (Real, args) => (String(args[1] ?? "").includes("vite-hmr") ? new EventTarget() : new Real(...args)),
+  });
+}
+
 let pages = [];
+/** Like browser.mjs's `open`, with HMR off and reduced motion set before the first paint. */
 async function load(browser, side, mode = "static", { width = 1100, height = 600, reducedMotion = false } = {}) {
-  const page = await open(browser, side.url[mode], { width, height });
+  const page = await browser.newPage({
+    viewport: { width, height },
+    deviceScaleFactor: 2,
+    colorScheme: "light",
+    reducedMotion: reducedMotion ? "reduce" : "no-preference",
+  });
   pages.push(page);
-  if (reducedMotion) {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.reload();
-  }
+  page.on("pageerror", (error) => console.error(`[page error] ${side.name}: ${error.message}`));
+  await page.addInitScript(noHmr);
+  await page.goto(side.url[mode]);
+  await page.evaluate(() => document.fonts.ready);
   await page.waitForSelector(side.S.block);
   await page.waitForTimeout(mode === "static" ? 500 : 100);
   await page.mouse.move(2, 2);
@@ -102,6 +119,8 @@ const LIB = `
   const describe = (el) => {
     if (!el || el === document.body) return "body";
     if (el.matches(S.block)) return el.textContent.trim();
+    if (el.matches(S.approve)) return "Approve button";
+    if (el.matches(S.reject)) return "Reject button";
     const text = el.textContent.trim().slice(0, 24);
     return el.tagName.toLowerCase() + "." + [...el.classList].join(".") + (text ? ' "' + text + '"' : "");
   };
@@ -168,31 +187,48 @@ async function filmstrip(p, { clip, count, every, rate, t0 = Date.now(), probe }
   return frames;
 }
 
-/** Frames stacked top to bottom, each labelled, as one PNG. */
-async function stack(browser, frames) {
-  const page = await browser.newPage({ deviceScaleFactor: 1 });
-  const rows = frames
+/**
+ * Labelled PNGs in one PNG: frames top to bottom (`column`), or panels side by
+ * side. Not browser.mjs's `sideBySide`: that measures and takes a full-page
+ * shot before data-URI images decode, and tall sheets come out with their top
+ * repeated at the bottom.
+ */
+async function compose(browser, panels, { column = false } = {}) {
+  const page = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 4000, height: 4000 } });
+  const cells = panels
     .map(({ label, png }) => `<figure><figcaption>${label}</figcaption><img src="data:image/png;base64,${png.toString("base64")}"></figure>`)
     .join("");
-  await page.setContent(`<style>
-    body{margin:0;display:flex;flex-direction:column;gap:6px;padding:8px;width:max-content;background:#fff;font:500 18px/1.2 ui-monospace,monospace;color:#444}
-    figure{margin:0;display:flex;align-items:center;gap:12px}figcaption{width:110px;text-align:right}img{display:block}
-  </style>${rows}`);
-  await page.waitForLoadState("load");
-  const size = await page.evaluate(() => ({ width: document.body.scrollWidth, height: document.body.scrollHeight }));
+  await page.setContent(`<!doctype html><style>
+    body{margin:0;display:flex;align-items:flex-start;width:max-content;height:max-content;background:#e9e9ec;color:#444}
+    body.row{gap:16px;padding:16px;font:600 22px/1.2 system-ui}
+    body.row figcaption{padding:4px 4px 10px}body.row img{border-radius:8px}
+    body.column{flex-direction:column;gap:6px;padding:8px;background:#fff;font:500 18px/1.2 ui-monospace,monospace}
+    body.column figure{display:flex;align-items:center;gap:12px}body.column figcaption{width:110px;text-align:right}
+    figure{margin:0}img{display:block}
+  </style><body class="${column ? "column" : "row"}">${cells}</body>`);
+  await page.evaluate(() => Promise.all([...document.images].map((image) => image.decode())));
+  // The body's own box (standards mode, so it is only as tall as its content).
+  const size = await page.evaluate(() => {
+    const r = document.body.getBoundingClientRect();
+    return { width: Math.ceil(r.width), height: Math.ceil(r.height) };
+  });
   await page.setViewportSize(size);
-  const png = await page.screenshot({ fullPage: true });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const png = await page.screenshot();
   await page.close();
   return png;
 }
 
 const written = [];
+async function writeSheet(browser, name, panels) {
+  const path = join(out, name);
+  writeFileSync(path, await compose(browser, panels));
+  written.push(path);
+}
 async function sheet(browser, name, strips) {
   const panels = [];
-  for (const [label, frames] of strips) panels.push({ label, png: await stack(browser, frames) });
-  const path = join(out, name);
-  await sideBySide(browser, path, panels);
-  written.push(path);
+  for (const [label, frames] of strips) panels.push({ label, png: await compose(browser, frames, { column: true }) });
+  await writeSheet(browser, name, panels);
 }
 const strip = (frames, label = (f) => `${f.t}ms`) => frames.map((f) => ({ label: label(f), png: f.png }));
 const bare = (frames) => frames.map(({ png, ...rest }) => rest);
@@ -258,8 +294,8 @@ const CHECKS = [
       const insideOnDown = (await popState(p, S)).open;
       await p.mouse.up();
       await p.waitForTimeout(200);
-      // Empty card space: the Writer's lane at a fifth of the track, before its block starts.
-      const spot = await inPage(p, S, "const t = box(document.querySelector(S.track)); const a = box(document.querySelectorAll(S.agent)[1]); return { x: t.x + t.w * 0.2, y: a.y + a.h / 2 };");
+      // Empty card space clear of the tooltip: Ops' lane between Sync CRM and Rotate API keys.
+      const spot = await inPage(p, S, "const t = box(document.querySelector(S.track)); const a = box(document.querySelectorAll(S.agent)[3]); return { x: t.x + t.w * 0.45, y: a.y + a.h * 0.75 };");
       await p.mouse.move(spot.x, spot.y);
       await p.mouse.down();
       await p.waitForTimeout(50);
@@ -299,23 +335,29 @@ const CHECKS = [
     async run(browser, side) {
       const { S } = side;
       const p = await load(browser, side);
-      const visible = `const el = document.activeElement; const t = box(document.querySelector(S.track)); const b = box(el);
-        return { who: describe(el), visible: el.matches(S.block) ? b.right > t.x && b.x < t.right : null };`;
-      const first = await inPage(p, S, `document.querySelector(S.firstStop).focus(); ${visible}`);
-      const sequence = [first];
+      // What is drawn before anything takes focus: focusing a block outside the window scrolls the clip.
+      const drawn = await inPage(
+        p,
+        S,
+        `const t = box(document.querySelector(S.track));
+         return [...document.querySelectorAll(S.block)].filter((b) => { const r = box(b); return r.right > t.x && r.x < t.right; }).map(describe);`,
+      );
+      const step = `return { who: describe(document.activeElement), clipScroll: document.querySelector(S.clip).scrollLeft };`;
+      const sequence = [await inPage(p, S, `document.querySelector(S.firstStop).focus(); ${step}`)];
       for (let i = 0; i < 8; i += 1) {
         await p.keyboard.press("Tab");
         await p.waitForTimeout(60);
-        sequence.push(await inPage(p, S, visible));
+        sequence.push(await inPage(p, S, step));
       }
       const expected = ["Competitor pricing", "Customer interviews", "Draft pricing page", "PR #482 billing", "Sync CRM", "Rotate API keys"];
-      const shown = sequence.filter((s) => s.visible).map((s) => s.who);
+      const shown = sequence.map((s) => s.who).filter((who) => drawn.includes(who));
       return {
         pass: expected.every((title, i) => shown[i] === title),
-        sequence: sequence.map((s) => (s.visible === false ? `${s.who} (off-screen)` : s.who)),
+        sequence: sequence.map((s) => (s.who.includes(".") || s.who === "body" || drawn.includes(s.who) ? s.who : `${s.who} (not drawn)`)),
+        clipScroll: sequence.map((s) => s.clipScroll),
       };
     },
-    compare: (a, b) => diffKeys(a, b, ["sequence"]),
+    compare: (a, b) => diffKeys(a, b, ["sequence", "clipScroll"]),
   },
   {
     n: 6,
@@ -428,8 +470,9 @@ const CHECKS = [
           `const pop = document.querySelector(S.pop); if (!pop) return null;
            const r = box(pop); const t = box(document.querySelector(S.track)); const lane = box(document.querySelectorAll(S.agent)[arg]);
            const n = (v) => Math.round(v * 10) / 10;
-           return { kind: pop.matches(S.ask) ? "ask" : pop.matches(S.tip) ? "tip" : "?", up: pop.hasAttribute("data-up"),
-             top: n(r.y - lane.y), bottom: n(r.bottom - lane.y), left: n(r.x - t.x), right: n(t.right - r.right), width: n(r.w), height: n(r.h) };`,
+           const kind = pop.matches(S.ask) ? "ask" : pop.matches(S.tip) ? "tip" : "?"; const up = pop.hasAttribute("data-up");
+           return { kind, up, top: n(r.y - lane.y), bottom: n(r.bottom - lane.y), left: n(r.x - t.x), right: n(t.right - r.right), width: n(r.w), height: n(r.h),
+             anchorY: n(up ? r.bottom - lane.y : r.y - lane.y), anchorX: n(kind === "tip" ? r.x + r.w / 2 - t.x : t.right - r.right) };`,
           LANE[title],
         );
         result[title] = { expectUp: up, ...placed, ok: !!placed && placed.kind === kind && placed.up === up };
@@ -442,7 +485,7 @@ const CHECKS = [
     compare: (a, b) =>
       Object.keys(a)
         .filter((k) => k !== "pass")
-        .flatMap((k) => diffKeys(a[k], b[k], ["up", "top", "bottom", "left", "right", "width", "height"], 1).map((d) => `${k} ${d}`)),
+        .flatMap((k) => diffKeys(a[k], b[k], ["up", "anchorY", "anchorX", "width", "height"], 1).map((d) => `${k} ${d}`)),
   },
   {
     n: 10,
@@ -567,7 +610,7 @@ const CHECKS = [
       const read = `${ANIM}
         const tags = [...document.querySelectorAll(S.agent)].map((a) => a.querySelector(S.state));
         const shown = tags.find((t) => t.hasAttribute("data-show")); const hidden = tags.find((t) => !t.hasAttribute("data-show"));
-        const values = (t) => { const c = getComputedStyle(t); return { columns: c.gridTemplateColumns, marginLeft: c.marginLeft, opacity: c.opacity }; };
+        const values = (t) => { const c = getComputedStyle(t); return { columns: c.gridTemplateColumns, marginLeft: c.marginLeft, opacity: c.opacity, width: +box(t).w.toFixed(2) }; };
         return { shown: { ...trans(shown), ...values(shown) }, hidden: { ...trans(hidden), ...values(hidden) } };`;
       const transitions = await inPage(p, S, read);
 
@@ -610,7 +653,7 @@ const CHECKS = [
       const ran = await live.evaluate(() => window.__opsRan);
       for (const f of frames) f.t = ran === null ? null : Math.round((f.data.perf - ran) * rate);
       const last = frames.at(-1).data;
-      const collapsed = ran !== null && !last.show && last.opacity === "0" && last.width < 1;
+      const collapsed = ran !== null && !last.show && last.opacity === "0" && last.width <= transitions.hidden.width + 0.5;
       return { pass: collapsed, transitions, ranAtMinute9: ran !== null, frames };
     },
     async sheets(browser, results) {
@@ -622,7 +665,7 @@ const CHECKS = [
       for (const s of SIDES) results[s.name].frames = bare(results[s.name].frames).map(({ t, data: { perf, ...data } }) => ({ t, ...data }));
     },
     compare: (a, b) => [
-      ...["shown", "hidden"].flatMap((k) => diffKeys(a.transitions[k], b.transitions[k], ["property", "duration", "timing", "delay", "columns", "marginLeft", "opacity"]).map((d) => `${k} ${d}`)),
+      ...["shown", "hidden"].flatMap((k) => diffKeys(a.transitions[k], b.transitions[k], ["property", "duration", "timing", "delay", "columns", "marginLeft", "opacity", "width"], 0.5).map((d) => `${k} ${d}`)),
       ...collapseDiffs(a.frames, b.frames),
     ],
   },
@@ -683,9 +726,7 @@ const CHECKS = [
       return { pass: measured.rootWidth < 520 && near(measured.agentWidth, 48, 0.5) && measured.whoWidth === 0, ...measured, png };
     },
     async sheets(browser, results) {
-      const path = join(out, "narrow-500.png");
-      await sideBySide(browser, path, SIDES.map((s) => ({ label: s.name, png: results[s.name].png })));
-      written.push(path);
+      await writeSheet(browser, "narrow-500.png", SIDES.map((s) => ({ label: s.name, png: results[s.name].png })));
       for (const s of SIDES) delete results[s.name].png;
     },
     compare: (a, b) => diffKeys(a, b, ["rootWidth", "agentWidth", "trackWidth", "whoDisplay", "captions"]),
@@ -734,14 +775,21 @@ function diffKeys(a, b, keys, tolerance = 0) {
     return same ? [] : [`${k}: upstream ${show(x)}, ours ${show(y)}`];
   });
 }
+/** rgb()/rgba() channels; two colours within 4/255 per channel and 0.03 alpha count as one. */
+const channels = (v) => (/^rgba?\(/.test(v ?? "") ? v.match(/[\d.]+/g).map(Number).concat(1).slice(0, 4) : null);
+function sameValue(x, y) {
+  const [p, q] = [channels(x), channels(y)];
+  if (!p || !q) return x === y;
+  return p.every((c, i) => Math.abs(c - q[i]) <= (i === 3 ? 0.03 : 4));
+}
 function frameDiffs(a, b, label, keys) {
   return keys.flatMap((k) => {
     const x = a.map((f) => `${f.t}:${show(f.data[k])}`);
     const y = b.map((f) => `${f.t}:${show(f.data[k])}`);
     const xs = a.map((f) => show(f.data[k]));
     const ys = b.map((f) => show(f.data[k]));
-    if (xs.join() === ys.join()) return [];
-    const first = xs.findIndex((v, i) => v !== ys[i]);
+    const first = xs.findIndex((v, i) => !sameValue(v, ys[i]));
+    if (first === -1) return [];
     return [`${label} ${k} first differs at frame ${first} (${a[first]?.t}ms): upstream ${xs[first]}, ours ${ys[first]}; upstream ${compress(x)} | ours ${compress(y)}`];
   });
 }
@@ -767,7 +815,7 @@ function collapseDiffs(a, b) {
     const d = [];
     if (Math.abs(x.width - y.width) > 3) d.push(`width ${x.width} vs ${y.width}`);
     if (Math.abs(parseFloat(x.opacity) - parseFloat(y.opacity)) > 0.1) d.push(`opacity ${x.opacity} vs ${y.opacity}`);
-    if (x.background !== y.background) d.push(`tag background ${x.background} vs ${y.background}`);
+    if (!sameValue(x.background, y.background)) d.push(`tag background ${x.background} vs ${y.background}`);
     if (x.text !== y.text) d.push(`text "${x.text}" vs "${y.text}"`);
     if (d.length) diffs.push(`live ~${t}ms (upstream ${x.t}ms, ours ${y.t}ms): ${d.join(", ")}`);
   }
@@ -777,19 +825,31 @@ function collapseDiffs(a, b) {
 // ----- Run -----
 
 const browser = await launch();
-const report = { when: new Date().toISOString(), upstream: SIDES[0].url, ours: SIDES[1].url, checks: [] };
+const git = (args) => execSync(`git ${args}`, { encoding: "utf8" }).trim();
+const report = {
+  when: new Date().toISOString(),
+  commit: git("rev-parse --short HEAD"),
+  uncommitted: git("status --porcelain -- app shared").split("\n").filter(Boolean),
+  upstream: SIDES[0].url,
+  ours: SIDES[1].url,
+  checks: [],
+};
 let failed = false;
 try {
   for (const check of CHECKS) {
     const results = {};
     for (const side of SIDES) {
-      try {
-        results[side.name] = await check.run(browser, side);
-      } catch (error) {
-        results[side.name] = { pass: false, error: String(error?.message ?? error).split("\n")[0] };
-      } finally {
-        for (const page of pages) await page.close().catch(() => {});
-        pages = [];
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          results[side.name] = await check.run(browser, side);
+          break;
+        } catch (error) {
+          results[side.name] = { pass: false, error: String(error?.message ?? error).split("\n")[0] };
+          if (!/context was destroyed|navigat/i.test(results[side.name].error)) break;
+        } finally {
+          for (const page of pages) await page.close().catch(() => {});
+          pages = [];
+        }
       }
     }
     if (check.sheets && SIDES.every((s) => !results[s.name].error)) await check.sheets(browser, results);
