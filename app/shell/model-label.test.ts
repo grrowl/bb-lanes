@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatModelLabel } from "./model-label";
+import { DEFAULT_LINE_STYLES } from "../../shared/view";
 import { parsePreferences } from "./preferences";
 import { DAY, formatDuration, HOUR, MINUTE, presetForSpan, widerPreset } from "./time";
 
@@ -49,5 +50,33 @@ describe("parsePreferences", () => {
       namesWidth: 220,
     });
     expect(parsed).toMatchObject({ groupMode: "machine", filter: "active", span: 15 * MINUTE, collapsedGroups: [], namesWidth: 220 });
+  });
+});
+
+describe("parsePreferences: line styles", () => {
+  it("defaults both kinds when the field is missing or not an object", () => {
+    expect(parsePreferences({}).lineStyles).toEqual(DEFAULT_LINE_STYLES);
+    expect(parsePreferences({ lineStyles: "fancy" }).lineStyles).toEqual(DEFAULT_LINE_STYLES);
+    expect(parsePreferences({ lineStyles: { spawn: 4 } }).lineStyles).toEqual(DEFAULT_LINE_STYLES);
+  });
+
+  it("keeps valid choices and resets only the bad field of a kind", () => {
+    const parsed = parsePreferences({
+      lineStyles: {
+        spawn: { stroke: "wavy", start: "circle", end: "dot", color: "violet" },
+        tell: { stroke: "dotted", start: "none", end: "laser", color: "#ff0000" },
+      },
+    });
+    expect(parsed.lineStyles).toEqual({
+      spawn: { stroke: "solid", start: "circle", end: "dot", color: "violet" },
+      tell: { stroke: "dotted", start: "none", end: "arrow", color: "auto" },
+    });
+  });
+
+  it("ignores unknown keys inside a style", () => {
+    const parsed = parsePreferences({
+      lineStyles: { spawn: { ...DEFAULT_LINE_STYLES.spawn, width: 9 }, tell: DEFAULT_LINE_STYLES.tell },
+    });
+    expect(parsed.lineStyles.spawn).toEqual(DEFAULT_LINE_STYLES.spawn);
   });
 });
