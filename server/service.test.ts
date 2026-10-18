@@ -3,7 +3,7 @@ import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { createFakePluginHost, makeThreadResponse } from "@get-bb/plugin-sdk/testing";
 import plugin from "../server";
 import { LANES_CHANGED, type LanesSnapshot } from "../shared/model";
-import { emptyIndex, foldEvents, type IndexEvent, type IndexThread } from "./indexer";
+import { emptyIndex, foldEvents, INDEX_VERSION, type IndexEvent, type IndexThread } from "./indexer";
 import { LanesStorage } from "./storage";
 
 type Subscription = Parameters<BbPluginApi["sdk"]["subscribe"]>[0];
@@ -85,6 +85,70 @@ describe("lanes backend", () => {
     expect(snapshot.handoffs).toMatchObject([{ at: 30, fromBlockId: "turn-parent", toBlockId: "turn-child" }]);
     expect(storage.window(150, false, ["child"]).handoffs).toHaveLength(1);
     expect(storage.window(150, false, ["parent"]).handoffs).toHaveLength(1);
+  });
+  it.each(["child-completed", "child-failed"])("resolves %s to the child's last turn ending before the report", async systemMessageKind => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    const parent: IndexThread = { id: "parent", parentThreadId: null, status: "active", updatedAt: 130 };
+    const report = event(1, "client/turn/requested", "", { requestId: "end", source: "tell", initiator: "system",
+      systemMessageKind, systemMessageSubject: { kind: "thread", threadId: "worker", outcomes: [{ threadId: "worker", status: "completed" }] } }, 100);
+    storage.save(parent, foldEvents(emptyIndex(), [report, event(2, "turn/started", "parent-turn", {}, 105)], parent));
+    expect(storage.window(0, false).handoffs[0].fromBlockId).toBeNull();
+    const worker: IndexThread = { id: "worker", parentThreadId: "parent", status: "active", updatedAt: 130 };
+    storage.save(worker, foldEvents(emptyIndex(), [
+      event(1, "turn/started", "last-ended", {}, 10),
+      event(2, "turn/started", "later-started", {}, 20),
+      event(3, "turn/completed", "later-started", { status: "completed" }, 40),
+      event(4, "turn/started", "open", {}, 70),
+      event(5, "turn/completed", "last-ended", { status: "failed" }, 100),
+      event(6, "turn/started", "future", {}, 110),
+      event(7, "turn/completed", "future", { status: "completed" }, 120),
+    ], worker));
+    const snapshot = await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot;
+    expect(snapshot.handoffs).toMatchObject([{ kind: "end", fromThreadId: "worker", fromBlockId: "last-ended", toBlockId: "parent-turn", at: 100 }]);
+    expect(storage.handoffsFor("worker")[0].fromBlockId).toBe("last-ended");
+  });
+  it("leaves end handoffs unbound when the child has no turn ending by the report time", async () => {
+    const host = setup();
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    const parent: IndexThread = { id: "parent", parentThreadId: null, status: "active", updatedAt: 200 };
+    storage.save(parent, foldEvents(emptyIndex(), [event(1, "client/turn/requested", "", { source: "tell", initiator: "system",
+      systemMessageKind: "child-completed", systemMessageSubject: { kind: "thread", threadId: "worker", outcomes: [] } }, 50),
+      event(2, "turn/started", "parent-turn", {}, 55)], parent));
+    seed(storage, "worker", 10, 100);
+    expect(storage.window(0, false).handoffs[0].fromBlockId).toBeNull();
+    seed(storage, "worker", 10, null);
+    expect(storage.window(0, false).handoffs[0].fromBlockId).toBeNull();
+  });
+  it("passes threads.get fork metadata through the live indexer and shared RPC", async () => {
+    const host = setup([event(1, "client/turn/requested", "", { requestId: "fork", source: "spawn" }, 50),
+      event(2, "turn/started", "fork-turn", {}, 55)]);
+    host.harness.inspection.sdk.stub("threads.get", async () => makeThreadResponse({
+      id: "t", status: "active", originKind: "fork", sourceThreadId: "source", parentThreadId: null,
+    }));
+    await boot(host);
+    const storage = new LanesStorage(host.bb);
+    seed(storage, "source", 10, null);
+    const snapshot = await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot;
+    expect(snapshot.handoffs).toMatchObject([{ kind: "fork", fromThreadId: "source", fromBlockId: "turn-source", toBlockId: "fork-turn", at: 50 }]);
+  });
+  it("rebuilds persisted indexes created before the current folding version", async () => {
+    const host = setup([event(1, "turn/started", "turn")]);
+    await plugin(host.bb);
+    const storage = new LanesStorage(host.bb);
+    const thread: IndexThread = { id: "t", status: "active", parentThreadId: null, updatedAt: Date.now() };
+    const stale = foldEvents(emptyIndex(), [event(100, "turn/started", "stale")], thread);
+    stale.version = INDEX_VERSION - 1;
+    storage.save(thread, stale);
+    const service = host.harness.behavior.runService("lanes-indexer");
+    await vi.waitFor(async () => expect((await host.harness.behavior.callRpc("lanes_window", { since: 0 }) as LanesSnapshot).indexing).toBe(false));
+    expect(host.list.mock.calls[0][0].afterSeq).toBe("0");
+    expect(storage.read("t").version).toBe(INDEX_VERSION);
+    expect(storage.window(0, false).blocks.map(block => block.id)).toEqual(["turn"]);
+    service.controller.abort();
+    await service.done;
   });
   it("publishes live changes after a per-thread debounce and only fetches new filtered events", async () => {
     vi.useFakeTimers();

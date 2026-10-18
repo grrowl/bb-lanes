@@ -15,6 +15,8 @@ export interface IndexThread {
   updatedAt: number;
   title?: string | null;
   projectId?: string;
+  originKind?: string | null;
+  sourceThreadId?: string | null;
 }
 interface InputRequest {
   id: string;
@@ -25,6 +27,7 @@ interface InputRequest {
   initiator: BlockInitiator;
   senderThreadId: string | null;
   assignedTo: string | null;
+  endedThreadId: string | null;
 }
 export interface IndexedTurn {
   block: LaneBlock;
@@ -38,12 +41,13 @@ export interface IndexedTurn {
   pending: Record<string, BlockAsk>;
   syntheticEnd: boolean;
 }
-/** Bump whenever folding changes what a block holds; stored indexes from older versions are rebuilt. */
-export const INDEX_VERSION = 2;
+/** Bump when folding changes turns or handoffs; stored indexes from older versions are rebuilt. */
+export const INDEX_VERSION = 3;
 
 export interface ThreadIndex {
   version: number;
   lastSeq: number;
+  firstTurnId: string | null;
   requests: InputRequest[];
   turns: Record<string, IndexedTurn>;
   handoffs: LaneHandoff[];
@@ -55,7 +59,7 @@ export const INDEX_EVENT_TYPES = [
 ] as const;
 
 export const emptyIndex = (): ThreadIndex => ({
-  version: INDEX_VERSION, lastSeq: 0, requests: [], turns: {}, handoffs: [], removedTurnIds: [],
+  version: INDEX_VERSION, lastSeq: 0, firstTurnId: null, requests: [], turns: {}, handoffs: [], removedTurnIds: [],
 });
 export function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -101,15 +105,29 @@ function updateWaiting(turn: IndexedTurn) {
   turn.block.ask = Object.values(turn.pending).at(-1) ?? null;
   if (turn.block.end === null) turn.block.status = turn.block.ask ? "waiting" : "running";
 }
-function addHandoff(state: ThreadIndex, thread: IndexThread, turn: IndexedTurn, request: InputRequest) {
-  const from = request.source === "tell" ? request.senderThreadId
-    : request.source === "spawn" ? thread.parentThreadId : null;
+function putHandoff(state: ThreadIndex, handoff: LaneHandoff) {
+  const existing = state.handoffs.findIndex(candidate => candidate.id === handoff.id);
+  if (existing === -1) state.handoffs.push(handoff);
+  // One source/target pair has one curve. A completion supersedes an earlier tell.
+  else if (handoff.kind === "end" || handoff.kind === "fork") state.handoffs[existing] = handoff;
+}
+function addHandoff(state: ThreadIndex, thread: IndexThread, turn: IndexedTurn, request?: InputRequest) {
+  const isFirstTurn = state.firstTurnId === turn.block.id;
+  const forkSource = isFirstTurn && thread.originKind === "fork" ? thread.sourceThreadId : null;
+  const firstRequest = state.requests.find(candidate => candidate.id === turn.acceptedRequestIds[0]);
+  const at = request?.at ?? turn.block.start;
+  const handoff = (fromThreadId: string, kind: LaneHandoff["kind"]): LaneHandoff => ({
+    id: `${fromThreadId}>${turn.block.id}`, kind, fromThreadId, fromBlockId: null,
+    toThreadId: thread.id, toBlockId: turn.block.id, at,
+  });
+  if (forkSource && forkSource !== thread.id) {
+    putHandoff(state, { ...handoff(forkSource, "fork"), at: firstRequest?.at ?? at });
+  }
+  if (!request) return;
+  const from = request.endedThreadId || (request.source === "tell" ? request.senderThreadId
+    : request.source === "spawn" && isFirstTurn && !forkSource ? thread.parentThreadId || thread.sourceThreadId : null);
   if (!from || from === thread.id) return;
-  const id = `${from}>${turn.block.id}`;
-  if (state.handoffs.some(handoff => handoff.id === id)) return;
-  state.handoffs.push({ id, kind: request.source === "spawn" ? "spawn" : "tell",
-    fromThreadId: from, fromBlockId: null, toThreadId: thread.id,
-    toBlockId: turn.block.id, at: request.at });
+  putHandoff(state, handoff(from, request.endedThreadId ? "end" : request.source === "spawn" ? "spawn" : "tell"));
 }
 const ENVELOPE_LINE = /^\[bb [^\]]*\]$/;
 const MARKDOWN_PREFIX = /^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/;
@@ -162,10 +180,15 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
     if (event.type === "client/turn/requested") {
       const id = string(data.requestId) || `seq:${event.seq}`;
       if (!state.requests.some(request => request.id === id)) {
+        const subject = object(data.systemMessageSubject);
+        const isChildEnd = data.initiator === "system"
+          && (data.systemMessageKind === "child-completed" || data.systemMessageKind === "child-failed")
+          && subject.kind === "thread";
         state.requests.push({ id, at: event.createdAt, prompt: promptText(data.input).slice(0, 600),
           model: string(object(data.execution).model) || string(data.model) || null,
           source: string(data.source) || "send", initiator: data.initiator === "agent" || data.initiator === "system" ? data.initiator : "user",
-          senderThreadId: string(data.senderThreadId) || null, assignedTo: null });
+          senderThreadId: string(data.senderThreadId) || null, assignedTo: null,
+          endedThreadId: isChildEnd ? string(subject.threadId) || null : null });
       }
       continue;
     }
@@ -179,14 +202,15 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
         prompt: "", startSeq: event.seq, endSeq: null, acceptedRequestIds: [], fallbackRequestId: null,
         toolFrequency: {}, seenItems: [], pending: {}, syntheticEnd: false,
       };
+      state.firstTurnId ??= turnId;
       state.turns[turnId] = turn;
       const fallback = [...state.requests].reverse().find(request => request.assignedTo === null && request.at <= event.createdAt);
       if (fallback) {
         turn.fallbackRequestId = fallback.id;
         fallback.assignedTo = turnId;
         applyRequest(turn, fallback);
-        addHandoff(state, thread, turn, fallback);
       }
+      addHandoff(state, thread, turn, fallback);
     }
     const turn = state.turns[turnId];
     if (!turn || !(INDEX_EVENT_TYPES as readonly string[]).includes(event.type)) continue;
