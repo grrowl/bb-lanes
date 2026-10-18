@@ -33,6 +33,12 @@ export interface LaneRow {
   collapsed: boolean;
   /** Is this the last sibling at its depth (for tree guides). */
   isLastChild: boolean;
+  /**
+   * Optional: thread ids hidden under this lane while it is collapsed (its
+   * descendants). Hand-off curves to or from them end on this row instead of
+   * fading out.
+   */
+  collapsedThreadIds?: string[];
   /** Live state from the sidebar, used for the lane's own idle/needs-you tag and tinting. */
   state: "idle" | "running" | "waiting" | "failed" | "queued" | "starting";
 }
@@ -76,4 +82,14 @@ export interface TimelineProps {
   /** Thread id to emphasise (e.g. the thread open in another pane). */
   highlightedThreadId?: string | null;
   className?: string;
+
+  /**
+   * Width of the names column in px (clamped to 120…360). Uncontrolled when
+   * omitted. The engine renders the drag handle and reports the final width
+   * of each resize through `onNamesWidthChange` so the shell can persist it.
+   */
+  namesWidth?: number;
+  onNamesWidthChange?(width: number): void;
+  /** Replaces the built-in empty state shown when `rows` is empty. */
+  emptyState?: ReactNode;
 }

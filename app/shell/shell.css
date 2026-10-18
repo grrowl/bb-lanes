@@ -1,0 +1,80 @@
+/* Chrome around the timeline: the pane's tray, row header cells, the toolbar,
+ * and the title-bar summary. Colours derive from bb's theme variables so
+ * custom palettes and dark mode follow; Tailwind utilities cover the rest. */
+
+.lanes-chrome {
+  --lanes-run: var(--timeline-accent);
+  --lanes-warn: var(--warning-text);
+  --lanes-danger: var(--destructive-text);
+  --lanes-run-wash: color-mix(in oklab, var(--lanes-run) 14%, transparent);
+  --lanes-warn-wash: color-mix(in oklab, var(--lanes-warn) 14%, transparent);
+  --lanes-danger-wash: color-mix(in oklab, var(--lanes-danger) 12%, transparent);
+  --lanes-tile-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+  --lanes-row: 48px;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+}
+.lanes-chrome[data-density="compact"] { --lanes-row: 36px; }
+
+/* ----- Tones: a dot, a glyph, or a chip coloured by state ----- */
+.lanes-tone-run { --tone: var(--lanes-run); --tone-wash: var(--lanes-run-wash); }
+.lanes-tone-warn { --tone: var(--lanes-warn); --tone-wash: var(--lanes-warn-wash); }
+.lanes-tone-danger { --tone: var(--lanes-danger); --tone-wash: var(--lanes-danger-wash); }
+.lanes-dot { display: inline-block; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--tone, var(--muted-foreground)); }
+.lanes-tone-warn .lanes-dot, .lanes-dot.lanes-tone-warn, .lanes-pulse { animation: lanes-pulse 1600ms ease-in-out infinite; }
+.lanes-toned { color: var(--tone); }
+
+/* ----- Avatars: a provider logo on a small tile, or initials ----- */
+.lanes-avatar {
+  display: grid; flex: none; place-items: center;
+  width: 26px; height: 26px; overflow: hidden; border-radius: 50%;
+  background: var(--muted); color: var(--muted-foreground);
+  font-size: 10px; font-weight: 500; letter-spacing: 0.3px; line-height: 1;
+}
+.lanes-avatar[data-logo] { background: var(--card); color: var(--foreground); box-shadow: var(--lanes-tile-shadow); }
+.lanes-chrome[data-density="compact"] .lanes-avatar { width: 22px; height: 22px; font-size: 9px; }
+
+/* ----- Row header cells ----- */
+.lanes-cell { position: relative; display: flex; align-items: center; height: 100%; min-width: 0; container-type: inline-size; }
+.lanes-guide { position: absolute; pointer-events: none; background: var(--border); }
+.lanes-who { display: grid; min-width: 0; }
+@container (max-width: 96px) {
+  .lanes-who, .lanes-group-text { display: none; }
+}
+
+/* The state tag collapses to nothing while the agent works and fades in when
+ * it is free, waiting, or stuck. The label lingers while it collapses. */
+.lanes-state {
+  display: inline-grid; flex: none; grid-template-columns: 0fr; margin-left: 0; opacity: 0;
+  transition: grid-template-columns 320ms ease, margin-left 320ms ease, opacity 220ms ease;
+}
+.lanes-state[data-show] {
+  grid-template-columns: 1fr; margin-left: 6px; opacity: 1;
+  transition: grid-template-columns 320ms ease, margin-left 320ms ease, opacity 260ms ease 80ms;
+}
+.lanes-state > span {
+  min-width: 0; overflow: hidden; padding: 0 5px; border-radius: 4px;
+  background: var(--muted); color: var(--muted-foreground);
+  font-size: 11px; font-weight: 500; line-height: 16px; white-space: nowrap;
+}
+.lanes-state[data-state="waiting"] > span { background: var(--lanes-warn-wash); color: var(--lanes-warn); }
+.lanes-state[data-state="failed"] > span { background: var(--lanes-danger-wash); color: var(--lanes-danger); }
+
+.lanes-chevron { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+[data-collapsed] > .lanes-chevron, .lanes-chevron[data-collapsed] { transform: rotate(-90deg); }
+
+.lanes-mark { border-radius: 2px; background: var(--lanes-warn-wash); color: inherit; }
+
+/* ----- Empty and loading states: ghost lanes drawn from block shapes ----- */
+.lanes-ghost-track { position: relative; height: 22px; }
+.lanes-ghost-block { position: absolute; top: 0; bottom: 0; border-radius: 7px; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
+.lanes-ghost-block[data-tone="run"] { background: var(--lanes-run-wash); }
+.lanes-ghost-block[data-tone="warn"] { background: var(--lanes-warn-wash); }
+
+@keyframes lanes-pulse { 50% { opacity: 0.55; } }
+@keyframes lanes-rise { from { opacity: 0; transform: translateY(3px); } }
+.lanes-rise { animation: lanes-rise 220ms ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lanes-chrome *, .lanes-chrome *::before, .lanes-chrome *::after { animation: none !important; transition: none !important; }
+}
