@@ -1,0 +1,1301 @@
+/*
+ * bb Lanes timeline: affectUI's Agent Lanes, grown into a full pane.
+ *
+ * Fidelity first. Every upstream rule is carried over with its values; the
+ * mapping is mechanical: `.ui-al` → `.bl`, `.ui-al__x` → `.bl-x`, and
+ * `--ui-al-x` → `--bl-x`. What upstream does not have (group rows, the
+ * collapsed-group strip, clusters, panning, the jump pill, the resize handle,
+ * sticky titles) is drawn with the same tokens, radii and motion.
+ *
+ * `.bl-theme` carries the palette alone, so the shell's tray and card can
+ * share it. Dark mode follows `.dark` or `data-theme="dark"` on an ancestor.
+ */
+
+/* Colors and motion as variables – override them on .bl */
+.bl,
+.bl-theme {
+  --bl-tray: #f0f0f0;
+  --bl-card: #ffffff;
+  --bl-strong: #171717;
+  --bl-ink: #171717;
+  --bl-text: #6b6b6b;
+  --bl-muted: #8a8a8a;
+  --bl-faint: #b8b8b8;
+  --bl-line: #ececec;
+  --bl-rail: #c4c4c8;
+  --bl-wash: #f6f6f6;
+  --bl-fill: #ececec;
+  --bl-done: #f2f2f3;
+  --bl-solid: #171717;
+  --bl-on-solid: #ffffff;
+  --bl-solid-hover: #33333a;
+  --bl-run-bg: rgba(47, 107, 255, 0.1);
+  --bl-run-fg: #2f6bff;
+  --bl-run-edge: rgba(47, 107, 255, 0.55);
+  --bl-warn-bg: #fff3e0;
+  --bl-warn-fg: #b85c00;
+  --bl-danger-bg: #fdecea;
+  --bl-danger-fg: #c2331f;
+  --bl-focus: rgba(23, 23, 23, 0.22);
+  --bl-shadow: 0 0 0 1px #ececec, 0 1px 2px rgba(0, 0, 0, 0.04);
+  --bl-pop: 0 0 0 1px #ececec, 0 16px 36px -12px rgba(0, 0, 0, 0.22);
+  --bl-shimmer: rgba(255, 255, 255, 0.55);
+  /* The dark tooltip, and the small dark chips that share its look. */
+  --bl-tip-bg: rgba(23, 23, 23, 0.92);
+  --bl-tip-text: rgba(255, 255, 255, 0.86);
+  --bl-tip-muted: rgba(255, 255, 255, 0.55);
+  --bl-tip-strong: #ffffff;
+  --bl-tip-rule: rgba(255, 255, 255, 0.35);
+  --bl-tip-dot: rgba(255, 255, 255, 0.5);
+  --bl-tip-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.35);
+  /* Extensions, derived from the palette above. */
+  --bl-band: color-mix(in srgb, var(--bl-wash) 70%, transparent);
+  --bl-hover-band: var(--bl-wash);
+  --bl-link-band: color-mix(in srgb, var(--bl-run-bg) 55%, transparent);
+  --bl-highlight-band: color-mix(in srgb, var(--bl-run-bg) 45%, transparent);
+  --bl-hatch: color-mix(in srgb, var(--bl-text) 26%, transparent);
+  --bl-bar-failed: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
+  --bl-dim: 0.35;
+}
+
+/* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html> */
+:where(.dark, [data-theme="dark"]) :is(.bl, .bl-theme) {
+  --bl-tray: #111113;
+  --bl-card: #19191b;
+  --bl-strong: #ffffff;
+  --bl-ink: rgba(255, 255, 255, 0.9);
+  --bl-text: rgba(255, 255, 255, 0.62);
+  --bl-muted: rgba(255, 255, 255, 0.45);
+  --bl-faint: rgba(255, 255, 255, 0.28);
+  --bl-line: rgba(255, 255, 255, 0.08);
+  --bl-rail: rgba(255, 255, 255, 0.2);
+  --bl-wash: rgba(255, 255, 255, 0.04);
+  --bl-fill: rgba(255, 255, 255, 0.08);
+  --bl-done: rgba(255, 255, 255, 0.06);
+  --bl-solid: rgba(255, 255, 255, 0.92);
+  --bl-on-solid: #141416;
+  --bl-solid-hover: #d6d6da;
+  --bl-run-bg: #0077ff3a;
+  --bl-run-fg: #70b8ff;
+  --bl-run-edge: rgba(112, 184, 255, 0.6);
+  --bl-warn-bg: #fb6a0025;
+  --bl-warn-fg: #ffa057;
+  --bl-danger-bg: #ff35232b;
+  --bl-danger-fg: #ff977d;
+  --bl-focus: rgba(91, 154, 255, 0.45);
+  --bl-shadow: 0 0 0 1px #2a2a2e, 0 1px 2px rgba(0, 0, 0, 0.3);
+  --bl-pop: 0 0 0 1px #2a2a2e, 0 16px 36px -12px rgba(0, 0, 0, 0.6);
+  --bl-shimmer: rgba(255, 255, 255, 0.12);
+  /* Dark mode: the tooltip turns light, so it stands out from the dark card */
+  --bl-tip-bg: rgba(250, 250, 250, 0.94);
+  --bl-tip-text: rgba(0, 0, 0, 0.82);
+  --bl-tip-muted: rgba(0, 0, 0, 0.5);
+  --bl-tip-strong: #000000;
+  --bl-tip-rule: rgba(0, 0, 0, 0.3);
+  --bl-tip-dot: rgba(0, 0, 0, 0.4);
+  --bl-tip-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --bl-dim: 0.4;
+}
+
+.bl {
+  --bl-row: 48px;
+  --bl-inset: 10px;
+  --bl-radius: 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  container: bl-lanes / inline-size;
+  isolation: isolate;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: -0.006em;
+  color: var(--bl-text);
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+/* Compact density keeps the reference's proportions on a 36px row. */
+.bl[data-density="compact"] {
+  --bl-row: 36px;
+  --bl-inset: 6px;
+  --bl-radius: 7px;
+}
+.bl *,
+.bl *::before,
+.bl *::after {
+  box-sizing: border-box;
+}
+:where(.bl) button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bl button:focus-visible,
+.bl [tabindex]:focus-visible {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: 1px;
+}
+.bl ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bl svg {
+  display: block;
+  flex: none;
+}
+.bl kbd {
+  font: inherit;
+}
+.bl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----- Lanes ----- */
+/* The reference's body: a 168px names column, 26px above for the ticks, 16px
+ * right of now, 12px below. Here the names column is resizable, the ticks sit
+ * in a sticky ruler, and the rows scroll. */
+.bl-frame {
+  --bl-names: var(--bl-names-w, 168px);
+  --bl-gutter: 16px;
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.bl-scroller {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bl-fill) transparent;
+}
+.bl-canvas {
+  position: relative;
+  box-sizing: content-box;
+  padding-bottom: 12px;
+}
+
+/* Time ticks: labels above the track, quiet dashed lines through it. */
+.bl-ruler {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: var(--bl-names) minmax(0, 1fr) var(--bl-gutter);
+  height: 26px;
+  background: var(--bl-card);
+}
+.bl-ruler-track {
+  position: relative;
+  min-width: 0;
+}
+.bl-ruler-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+}
+.bl-ticks,
+.bl-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+  animation: bl-fade 220ms ease both;
+}
+.bl-tick {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+}
+.bl-tick-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--bl-faint);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  font-variant-numeric: tabular-nums;
+}
+.bl-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 0.5px dashed var(--bl-line);
+}
+
+/* Rows: quiet lane separators, as in the reference; bands carry hover and highlight. */
+.bl-bands,
+.bl-names {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.bl-bands {
+  right: 0;
+  bottom: 12px;
+  pointer-events: none;
+}
+.bl-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transition: background-color 160ms ease;
+}
+.bl-band::after {
+  content: "";
+  position: absolute;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  bottom: 0;
+  height: 0.5px;
+  background: var(--bl-line);
+}
+.bl-band[data-kind="group"] {
+  background: var(--bl-band);
+}
+.bl-band[data-kind="group"]::after {
+  left: 0;
+  right: 0;
+}
+.bl-band[data-kind="group"]:not([data-first])::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0.5px;
+  background: var(--bl-line);
+}
+.bl-band[data-highlighted] {
+  background: var(--bl-highlight-band);
+}
+
+.bl-names {
+  width: var(--bl-names);
+  height: calc(100% - 12px);
+}
+.bl-name {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.bl-track {
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  left: var(--bl-names);
+  right: var(--bl-gutter);
+  cursor: grab;
+  touch-action: pan-y;
+}
+.bl[data-dragging] .bl-track,
+.bl[data-dragging] .bl-track * {
+  cursor: grabbing;
+}
+.bl[data-dragging] {
+  user-select: none;
+}
+
+.bl-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+}
+.bl-layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.bl-curves {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: visible;
+  pointer-events: none;
+  transition: opacity 220ms ease 80ms;
+}
+/* Hand-off lines: the reference's 1px rail, with the stroke, caps and colour
+ * fixed per kind in HANDOFF_LINES: Created red solid, Messaged blue dashed,
+ * Ended red solid, Forked neutral dotted. */
+.bl-curve {
+  fill: none;
+  stroke: var(--bl-lc-line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  transition:
+    opacity 160ms ease,
+    stroke-width 120ms ease;
+}
+.bl-curve[data-stroke="solid"] {
+  stroke-dasharray: none;
+}
+.bl-curve[data-stroke="dotted"] {
+  stroke-dasharray: 0.5 2.5;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+.bl-curve[data-live] {
+  animation: bl-flow 900ms linear infinite;
+}
+/* A live solid line flows too: it breaks into long dashes that travel. */
+.bl-curve[data-live][data-stroke="solid"] {
+  stroke-dasharray: 9 3;
+  animation-name: bl-flow-long;
+}
+.bl-curve-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  pointer-events: stroke;
+}
+[data-color="neutral"] {
+  --bl-lc: var(--bl-muted);
+  --bl-lc-line: var(--bl-rail);
+}
+[data-color="blue"] {
+  --bl-lc: var(--bl-run-fg);
+  --bl-lc-line: var(--bl-run-edge);
+}
+[data-color="red"] {
+  --bl-lc: var(--bl-danger-fg);
+  --bl-lc-line: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
+}
+.bl-curves linearGradient {
+  color: var(--bl-lc-line);
+}
+/* Caps sit on top of the blocks: a pin on the sender, an arrow into the target. */
+.bl-caps {
+  transition: opacity 160ms ease;
+}
+.bl-cap {
+  position: absolute;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  color: var(--bl-lc);
+  pointer-events: none;
+}
+.bl-cap::before {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+.bl-cap[data-cap="dot"]::before {
+  top: -2.5px;
+  left: -2.5px;
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  box-shadow: 0 0 0 1.5px var(--bl-card);
+}
+.bl-cap[data-cap="circle"]::before {
+  top: -3.5px;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid currentColor;
+  background: var(--bl-card);
+}
+.bl-cap svg {
+  position: absolute;
+  top: -4px;
+  left: -7px;
+  width: 6px;
+  height: 8px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bl-cap[data-at="start"] svg {
+  left: 1px;
+}
+/* Naming a hovered line, in the tooltip's look. */
+.bl-line-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bl-line-tip[data-show] {
+  opacity: 1;
+}
+.bl-line-tip > span {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--bl-tip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--bl-tip-text);
+  white-space: nowrap;
+  translate: -50% 0;
+}
+
+/* Rows let the pointer through to the lines beneath; only blocks catch it. */
+.bl-lane,
+.bl-grouptrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.bl-slot,
+.bl-strip {
+  pointer-events: auto;
+}
+.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name) {
+  transition: transform 320ms ease;
+}
+.bl[data-reflow] :is(.bl-curves, .bl-caps) {
+  opacity: 0;
+  transition: none;
+}
+
+.bl-slot {
+  position: absolute;
+  top: var(--bl-inset);
+  bottom: var(--bl-inset);
+  min-width: 6px;
+  /* An opaque card beneath each block: the reference's translucent running
+   * tint looks the same, and hand-off lines always pass under blocks. */
+  border-radius: var(--bl-radius);
+  background: var(--bl-card);
+}
+/* Running and waiting blocks grow out of "now" from nothing, so they never poke past it */
+.bl-slot:is([data-status="running"], [data-status="waiting"]),
+.bl-slot:is([data-status="running"], [data-status="waiting"]) .bl-block {
+  min-width: 0;
+}
+.bl-slot[data-fresh]:not(:is([data-status="running"], [data-status="waiting"])) {
+  animation: bl-in 180ms ease both;
+}
+.bl-block {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 6px;
+  padding: 0 10px;
+  overflow: hidden;
+  border-radius: var(--bl-radius);
+  background: var(--bl-done);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
+  container-type: inline-size;
+  transition:
+    background-color 300ms ease,
+    color 300ms ease,
+    opacity 160ms ease;
+}
+/* Titles stay readable when a block starts before the window: the content
+ * slides along the left edge (the controller sets its transform). */
+.bl-content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.bl-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+}
+/* Tools: the plain logos side by side, before the title */
+.bl-tools {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-right: 6px;
+}
+.bl-tool {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+}
+.bl-tool > svg,
+.bl-glyph {
+  width: 12px;
+  height: 12px;
+}
+/* Container sizes are the block's content box (its width less 20px of padding):
+ * glyphs go below 72px, the title below 28px, as in the spec. */
+@container (max-width: 52px) {
+  .bl-tools {
+    display: none;
+  }
+}
+@container (max-width: 8px) {
+  .bl-content {
+    display: none;
+  }
+}
+.bl-block:hover {
+  background: var(--bl-fill);
+}
+.bl-block[data-status="running"] {
+  position: relative;
+  background: var(--bl-run-bg);
+  color: var(--bl-run-fg);
+  box-shadow: inset -2px 0 0 var(--bl-run-edge);
+}
+.bl-block[data-status="running"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat;
+  animation: bl-shimmer 2200ms ease-in-out infinite;
+  pointer-events: none;
+}
+.bl-block[data-status="waiting"] {
+  background: var(--bl-warn-bg);
+  color: var(--bl-warn-fg);
+}
+.bl-block[data-status="failed"] {
+  background: var(--bl-danger-bg);
+  color: var(--bl-danger-fg);
+}
+/* Interrupted: a settled block whose end is hatched, as if cut off. */
+.bl-block[data-status="interrupted"] {
+  position: relative;
+}
+.bl-block[data-status="interrupted"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(14px, 45%);
+  background: repeating-linear-gradient(-45deg, var(--bl-hatch) 0 1px, transparent 1px 4px);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
+  mask-image: linear-gradient(to right, transparent, #000 70%);
+  pointer-events: none;
+}
+.bl-block[data-open] {
+  filter: brightness(0.97);
+}
+
+/* Needs you: a small flag inside the block's end, where it meets "now" */
+.bl-flag {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--bl-warn-fg);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+/* The reference pulses the whole flag; here only its contents, so a title
+ * beneath never shows through. */
+.bl-flag-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+.bl-slot:has(.bl-block[data-status="waiting"]) {
+  z-index: 2;
+}
+
+/* Clusters: short turns too close to tell apart, drawn as a barcode of where
+ * each ran (the gradient is set inline), with the count on a flag-like chip. */
+.bl-cluster {
+  --bl-bar: color-mix(in srgb, var(--bl-rail) 65%, var(--bl-done));
+  --bl-bar-interrupted: var(--bl-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 6px;
+  overflow: hidden;
+  border-radius: var(--bl-radius);
+  background-color: var(--bl-done);
+  container-type: inline-size;
+  transition:
+    background-color 300ms ease,
+    opacity 160ms ease;
+}
+.bl-cluster:hover {
+  background-color: var(--bl-fill);
+}
+.bl-cluster .bl-label {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  font-variant-numeric: tabular-nums;
+}
+.bl-cluster[data-status="failed"] .bl-label {
+  color: var(--bl-danger-fg);
+}
+@container (max-width: 34px) {
+  .bl-cluster .bl-label {
+    display: none;
+  }
+}
+
+/* A collapsed group: a silhouette of how many lanes were busy, by state. */
+.bl-strip {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--bl-radius);
+}
+.bl-strip:hover {
+  background: var(--bl-wash);
+}
+.bl-wave {
+  width: 100%;
+  height: 14px;
+}
+.bl-wave path {
+  shape-rendering: crispEdges;
+}
+.bl-wave [data-state="done"] {
+  fill: var(--bl-fill);
+}
+.bl-wave [data-state="interrupted"] {
+  fill: var(--bl-rail);
+}
+.bl-wave [data-state="failed"] {
+  fill: var(--bl-bar-failed);
+}
+.bl-wave [data-state="running"] {
+  fill: var(--bl-run-edge);
+}
+.bl-wave [data-state="waiting"] {
+  fill: var(--bl-warn-fg);
+  opacity: 0.6;
+}
+
+/* Now: a small label over the right edge, where running work meets the clock */
+.bl-ruler-nowclip,
+.bl-nowclip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: calc(-1 * var(--bl-gutter));
+  overflow: hidden;
+  pointer-events: none;
+}
+.bl-now-pin,
+.bl-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% - var(--bl-gutter));
+  will-change: transform;
+}
+.bl-now-pill {
+  position: absolute;
+  bottom: 6px;
+  right: 0;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-run-bg);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--bl-run-fg);
+}
+.bl-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  border-right: 0.5px solid var(--bl-run-edge);
+  opacity: 0.6;
+}
+
+/* Hovering the ruler: the clock time under the pointer, with a guide down the lanes. */
+.bl-hover-time {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--bl-names);
+  z-index: 7;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.bl-hover-time[data-show] {
+  opacity: 1;
+}
+.bl-hover-time::before {
+  content: "";
+  position: absolute;
+  top: 26px;
+  bottom: 0;
+  left: 0;
+  border-left: 0.5px dashed var(--bl-rail);
+}
+.bl-hover-label {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-tip-bg);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--bl-tip-strong);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  translate: -50% 0;
+}
+
+/* ----- Popovers ----- */
+
+.bl-pop {
+  position: absolute;
+  z-index: 9;
+  animation: bl-in 180ms ease both;
+}
+.bl-pop[data-up] {
+  transform: translateY(-100%);
+  animation-name: bl-in-up;
+}
+/* Decide in place */
+.bl-ask {
+  display: grid;
+  gap: 2px;
+  width: 290px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
+}
+/* What got done: a small dark tooltip */
+.bl-tip {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  max-width: 250px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bl-tip-bg);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--bl-tip-shadow);
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--bl-tip-text);
+  translate: -50% 0;
+}
+.bl-tip-head {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--bl-tip-muted);
+  white-space: nowrap;
+}
+.bl-tip-lane {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-tip-num {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.bl-tip-title {
+  color: var(--bl-tip-strong);
+}
+.bl-tip-list {
+  display: grid;
+  gap: 2px;
+}
+.bl-tip-list li {
+  position: relative;
+  padding-left: 10px;
+}
+.bl-tip-list li::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--bl-tip-dot);
+}
+.bl-tip-skeleton {
+  display: grid;
+  gap: 6px;
+  padding: 4px 0 3px 10px;
+}
+.bl-tip-skeleton span {
+  height: 9px;
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, transparent 0%, var(--bl-tip-dot) 50%, transparent 100%) 0 0 / 50% 100% no-repeat,
+    color-mix(in srgb, var(--bl-tip-dot) 40%, transparent);
+  animation: bl-shimmer 2200ms ease-in-out infinite;
+}
+.bl-tip-skeleton span:nth-child(1) {
+  width: 92%;
+}
+.bl-tip-skeleton span:nth-child(2) {
+  width: 70%;
+}
+.bl-tip-skeleton span:nth-child(3) {
+  width: 48%;
+}
+.bl-tip-empty,
+.bl-tip-counts {
+  font-size: 11.5px;
+  color: var(--bl-tip-muted);
+}
+.bl-tip-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+.bl-tip-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+}
+.bl-tip-open {
+  justify-self: start;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--bl-tip-strong);
+  text-decoration: underline;
+  text-decoration-color: var(--bl-tip-rule);
+  text-underline-offset: 2px;
+}
+.bl-tip-open--quiet {
+  color: var(--bl-tip-text);
+}
+.bl-tip-open kbd {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--bl-tip-muted);
+}
+.bl-ask-title {
+  font-weight: 500;
+  color: var(--bl-strong);
+}
+.bl-ask-text {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-text);
+}
+.bl-ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bl-ask-actions .bl-link {
+  margin-right: auto;
+}
+.bl-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bl-strong);
+}
+.bl-btn:hover {
+  background: var(--bl-wash);
+}
+.bl-btn--primary {
+  background: var(--bl-solid);
+  box-shadow: none;
+  color: var(--bl-on-solid);
+}
+.bl-btn--primary:hover {
+  background: var(--bl-solid-hover);
+}
+.bl-link {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bl-text);
+  text-decoration: underline;
+  text-decoration-color: var(--bl-line);
+  text-underline-offset: 2px;
+}
+.bl-link:hover {
+  color: var(--bl-strong);
+  text-decoration-color: var(--bl-rail);
+}
+
+/* ----- Floating controls ----- */
+
+/* Jump to now: the reference's "Last 30m" pill, floating, with the summary's needs-you mark. */
+.bl-jump {
+  position: absolute;
+  right: calc(var(--bl-gutter) + 8px);
+  bottom: 16px;
+  z-index: 8;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
+  border-radius: 999px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+.bl-jump[data-visible] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.bl-jump:hover {
+  color: var(--bl-strong);
+}
+.bl-jump kbd {
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-fill);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--bl-muted);
+}
+.bl-jump-needs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--bl-warn-fg);
+}
+.bl-jump-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-warn-fg);
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+
+/* Scrub bar: where the window sits in the loaded history. */
+.bl-scrub {
+  position: absolute;
+  right: var(--bl-gutter);
+  bottom: 0;
+  left: calc(var(--bl-names) + 40px);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  height: 12px;
+  cursor: pointer;
+}
+.bl-scrub[data-full] {
+  display: none;
+}
+.bl-scrub-rail {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--bl-line);
+  transition: height 160ms ease;
+}
+.bl-scrub-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 12px;
+  border-radius: 999px;
+  background: var(--bl-rail);
+  cursor: grab;
+  transition: background-color 160ms ease;
+}
+.bl-scrub:hover .bl-scrub-rail,
+.bl-scrub[data-dragging] .bl-scrub-rail {
+  height: 5px;
+}
+.bl-scrub:hover .bl-scrub-thumb,
+.bl-scrub[data-dragging] .bl-scrub-thumb {
+  background: var(--bl-muted);
+}
+.bl-scrub[data-dragging] .bl-scrub-thumb {
+  cursor: grabbing;
+}
+
+.bl-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--bl-names) - 4px);
+  z-index: 7;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.bl-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3.5px;
+  width: 1px;
+  background: var(--bl-rail);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.bl-resize:hover::after,
+.bl-resize:focus-visible::after,
+.bl[data-resizing] .bl-resize::after {
+  opacity: 1;
+}
+.bl-resize:focus-visible {
+  outline: none;
+}
+.bl[data-resizing],
+.bl[data-resizing] * {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* ----- Empty ----- */
+
+.bl-empty {
+  position: relative;
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 260px;
+  padding: 32px 16px;
+  overflow: hidden;
+}
+.bl-empty-ghosts {
+  position: absolute;
+  inset: 26px 16px auto 0;
+  display: grid;
+  grid-auto-rows: 48px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, #000 20%, transparent 75%);
+}
+.bl-empty-lane {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  align-items: center;
+}
+.bl-empty-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 16px;
+}
+.bl-empty-avatar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bl-done);
+}
+.bl-empty-text {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bl-done);
+}
+.bl-empty-track {
+  position: relative;
+  height: 28px;
+}
+.bl-empty-block {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  background: var(--bl-done);
+}
+.bl-empty-curve {
+  position: absolute;
+  inset: 0 0 0 168px;
+  width: calc(100% - 168px);
+  height: 192px;
+  overflow: visible;
+}
+.bl-empty-curve path {
+  fill: none;
+  stroke: var(--bl-rail);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.bl-empty-copy {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  max-width: 320px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-pop);
+  text-align: center;
+}
+.bl-empty-copy p {
+  margin: 0;
+}
+.bl-empty-title {
+  font-weight: 500;
+  color: var(--bl-strong);
+}
+.bl-empty-text-line {
+  margin-bottom: 10px !important;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-text);
+}
+
+@keyframes bl-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes bl-shimmer {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+@keyframes bl-flow {
+  to {
+    stroke-dashoffset: -6;
+  }
+}
+@keyframes bl-flow-long {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+@keyframes bl-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@keyframes bl-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% + 3px));
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+@keyframes bl-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Narrow containers: the names column shrinks to the avatars */
+@container bl-lanes (max-width: 520px) {
+  .bl-frame {
+    --bl-names: 48px;
+  }
+  .bl-empty-lane {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .bl-empty-name {
+    padding: 0 0 0 11px;
+  }
+  .bl-empty-text {
+    display: none;
+  }
+  .bl-empty-curve {
+    inset: 0 0 0 48px;
+    width: calc(100% - 48px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bl *,
+  .bl *::before,
+  .bl *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

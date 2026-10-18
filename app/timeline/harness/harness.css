@@ -1,0 +1,396 @@
+/* The harness page. The engine carries its own palette (timeline.css); the
+ * tray, bar and agent cells below copy the reference's rules onto it so the
+ * engine can be judged in the setting it was designed for. */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: #fafafa;
+  color: #171717;
+  font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.dark body {
+  background: #0b0b0c;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ----- Harness controls ----- */
+
+.hx {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+.hx-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #6b6b6b;
+}
+.dark .hx-bar {
+  color: rgba(255, 255, 255, 0.55);
+}
+.hx-bar strong {
+  margin-right: 6px;
+  font-size: 13px;
+  color: inherit;
+}
+.hx-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+}
+.dark .hx-seg {
+  background: rgba(255, 255, 255, 0.06);
+}
+.hx-seg button {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.hx-seg button[aria-pressed="true"] {
+  background: #fff;
+  box-shadow: 0 0 0 1px #ececec;
+  color: #171717;
+}
+.dark .hx-seg button[aria-pressed="true"] {
+  background: #19191b;
+  box-shadow: 0 0 0 1px #2a2a2e;
+  color: #fff;
+}
+.hx-stage {
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 12px 12px;
+}
+
+/* ----- The reference's tray, bar and card ----- */
+
+.hx-tray {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 20px;
+  background: var(--bl-tray);
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.006em;
+  color: var(--bl-text);
+  container-type: inline-size;
+}
+.hx-up-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 10px 12px 14px;
+}
+.hx-up-spark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  color: rgba(0, 96, 226, 0.765);
+}
+.hx-up-title {
+  font-weight: 600;
+  color: var(--bl-strong);
+  white-space: nowrap;
+}
+.hx-up-summary {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+}
+.hx-up-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hx-up-summary span::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bl-run-fg);
+}
+.hx-up-summary [data-kind="needs"] {
+  color: var(--bl-warn-fg);
+}
+.hx-up-summary [data-kind="needs"]::before {
+  background: var(--bl-warn-fg);
+  animation: bl-pulse 1600ms ease-in-out infinite;
+}
+.hx-up-window {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+}
+.hx-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+}
+
+/* ----- The reference's agent cell, as the shell's header ----- */
+
+.hx-agent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0 12px 0 16px;
+}
+.hx-agent[data-depth="1"] {
+  padding-left: 34px;
+}
+.hx-agent[data-depth="2"] {
+  padding-left: 52px;
+}
+.hx-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 28.5px;
+  width: 11px;
+  border-left: 1px solid var(--bl-line);
+}
+.hx-guide[data-last] {
+  bottom: 50%;
+  border-bottom: 1px solid var(--bl-line);
+  border-bottom-left-radius: 6px;
+}
+.hx-guide:not([data-last])::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 11px;
+  border-top: 1px solid var(--bl-line);
+}
+.hx-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--bl-fill);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--bl-text);
+}
+/* A logo sits on a small white tile */
+.hx-avatar[data-logo] {
+  background: var(--bl-card);
+  box-shadow: var(--bl-shadow);
+}
+.hx-avatar > svg {
+  width: 14px;
+  height: 14px;
+}
+.hx-who {
+  display: grid;
+  min-width: 0;
+}
+.hx-name {
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--bl-ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hx-name-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.hx-model {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--bl-muted);
+  white-space: nowrap;
+}
+.hx-model-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-density="compact"] .hx-model {
+  display: none;
+}
+/* The state tag: collapses to nothing while the agent works, fades in when it is free or waits */
+.hx-state {
+  display: inline-grid;
+  flex: none;
+  grid-template-columns: 0fr;
+  margin-left: 0;
+  opacity: 0;
+  transition:
+    grid-template-columns 320ms ease,
+    margin-left 320ms ease,
+    opacity 220ms ease;
+}
+.hx-state[data-show] {
+  grid-template-columns: 1fr;
+  margin-left: 6px;
+  opacity: 1;
+  transition:
+    grid-template-columns 320ms ease,
+    margin-left 320ms ease,
+    opacity 260ms ease 80ms;
+}
+.hx-state > span {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--bl-fill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--bl-text);
+  white-space: nowrap;
+}
+.hx-who[data-state="waiting"] .hx-state > span {
+  background: var(--bl-warn-bg);
+  color: var(--bl-warn-fg);
+}
+.hx-who[data-state="failed"] .hx-state > span {
+  background: var(--bl-danger-bg);
+  color: var(--bl-danger-fg);
+}
+
+.hx-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px 0 16px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.hx-chev {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--bl-muted);
+  transition: transform 200ms ease;
+}
+.hx-group[aria-expanded="false"] .hx-chev {
+  transform: rotate(-90deg);
+}
+.hx-group-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--bl-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hx-group-counts {
+  display: inline-flex;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--bl-muted);
+  font-variant-numeric: tabular-nums;
+}
+.hx-group-counts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.hx-group-counts [data-kind]::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.hx-group-counts [data-kind="running"] {
+  color: var(--bl-run-fg);
+}
+.hx-group-counts [data-kind="running"]::before {
+  background: var(--bl-run-fg);
+}
+.hx-group-counts [data-kind="needs"] {
+  color: var(--bl-warn-fg);
+}
+.hx-group-counts [data-kind="needs"]::before {
+  background: var(--bl-warn-fg);
+}
+
+/* Narrow containers: the names column shrinks to the avatars */
+@container (max-width: 96px) {
+  .hx-who,
+  .hx-group-label,
+  .hx-group-counts,
+  .hx-guide {
+    display: none;
+  }
+  .hx-agent,
+  .hx-agent[data-depth] {
+    justify-content: center;
+    padding: 0;
+  }
+  .hx-group {
+    justify-content: center;
+    padding: 0;
+  }
+}
+@container (max-width: 520px) {
+  .hx-up-summary [data-kind="running"] {
+    display: none;
+  }
+}
