@@ -850,7 +850,12 @@ export function LanesTimeline(props: TimelineProps) {
   }
 
   const openRowIndex = openBlock ? rowIndexById(layout, openBlock.threadId) : -1;
-  const openUp = openRowIndex >= 0 && layout.tops[openRowIndex]! - Math.max(0, scroll.top - rulerHeight) > (scroll.height - rulerHeight) / 2;
+  // Upstream opens above a lane in the bottom half (row ≥ rows / 2); with rows
+  // that scroll, the lane's middle against the middle of the view says the same.
+  const openUp =
+    openRowIndex >= 0 &&
+    layout.tops[openRowIndex]! + layout.heights[openRowIndex]! / 2 - Math.max(0, scroll.top - rulerHeight) >
+      (scroll.height - rulerHeight) / 2;
 
   return (
     <div {...rootProps}>
