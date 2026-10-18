@@ -54,6 +54,8 @@ export interface LaneBlock {
   /** bb turn id (scope.turnId). Unique across threads. */
   id: string;
   threadId: string;
+  /** The model id that ran the turn, when known. */
+  model?: string | null;
   start: number;
   /** Null while the turn is open. */
   end: number | null;
@@ -121,7 +123,9 @@ export interface BlockDetail {
 /** Realtime channel name and payload. Signals are ephemeral; reconcile on reconnect. */
 export const LANES_CHANGED = "lanes-changed";
 export interface LanesChangedSignal {
-  /** Blocks created or changed since the last signal (bounded, max 50). */
+  /** Blocks created or changed since the last signal (bounded, max 50).
+   * Empty arrays invalidate the window, including removals and bursts exceeding 50 total changes.
+   */
   blocks: LaneBlock[];
   handoffs: LaneHandoff[];
   generatedAt: number;
