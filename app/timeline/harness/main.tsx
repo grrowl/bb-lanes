@@ -8,7 +8,7 @@
 // `?parity=live` runs the demo's accelerated script.
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import type { BlockDetail, LaneBlock } from "../../../shared/model";
+import type { BlockDetail, LaneBlock, LaneNeighbors } from "../../../shared/model";
 import type { GroupRow, LaneRow, Row, RowDensity, Viewport } from "../../../shared/view";
 import { LiveSummary } from "../../shell/components/HeaderContent";
 import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "../../shell/components/RowHeader";
@@ -179,6 +179,34 @@ function Tray({
 
 // ----- The scripted scenario and the stress test -----
 
+/** A history load reaching further back answers after this long, like the shell's. */
+const LOAD_MS = 350;
+
+/**
+ * History as the shell holds it: every turn from a little before the window
+ * to now, reaching further back (after a moment) when the window does, and
+ * each lane's nearest older turn as `lanes_neighbors` would answer.
+ */
+function useShellLoading(all: readonly LaneBlock[], viewport: Viewport, now: number) {
+  const wanted = (viewport.live ? now : viewport.end) - viewport.span * 1.25;
+  const [since, setSince] = useState(wanted);
+  useEffect(() => {
+    if (wanted >= since) return;
+    const timer = window.setTimeout(() => setSince(wanted), LOAD_MS);
+    return () => window.clearTimeout(timer);
+  }, [wanted, since]);
+  return useMemo(() => {
+    const blocks = all.filter((block) => (block.end ?? Infinity) > since);
+    const neighbors: Record<string, LaneNeighbors> = {};
+    for (const block of all) {
+      if (block.end === null || block.end > since) continue;
+      const known = neighbors[block.threadId];
+      if (!known?.prev || known.prev.end! < block.end) neighbors[block.threadId] = { prev: block, next: null };
+    }
+    return { blocks, neighbors };
+  }, [all, since]);
+}
+
 function useClock(speed: number, startElapsed: number) {
   // The script's clock: `base` is when the script started, `elapsed` runs at `speed`.
   const [base] = useState(() => Date.now() - startElapsed * MINUTE);
@@ -223,6 +251,8 @@ function DemoHarness() {
     if (which === "stress") return stressScenario(stressNow);
     return scenario(base, step / 10, { decisions, decidedAt });
   }, [which, base, step, decisions, decidedAt, stressNow]);
+
+  const { blocks: loadedBlocks, neighbors } = useShellLoading(fixture.blocks, viewport, now);
 
   const empty = params.get("empty") === "1";
   const rows: Row[] = useMemo(
@@ -286,8 +316,9 @@ function DemoHarness() {
         >
           <LanesTimeline
             rows={rows}
-            blocks={fixture.blocks}
+            blocks={loadedBlocks}
             handoffs={fixture.handoffs}
+            neighbors={neighbors}
             now={now}
             viewport={viewport}
             onViewportChange={setViewport}

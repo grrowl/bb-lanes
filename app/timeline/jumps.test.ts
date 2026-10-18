@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LaneBlock } from "../../shared/model";
-import { formatDistance, jumpDistance, laneJumps, zipLanding } from "./jumps";
+import { formatDistance, jumpDistance, laneJumps, withNeighborBlocks, zipLanding } from "./jumps";
 import { indexBlocks } from "./layout";
 import { DAY, HOUR, MINUTE } from "./time";
 
@@ -71,6 +71,21 @@ describe("lane jumpers", () => {
     // A neighbour that no longer lies outside the window is ignored.
     expect(laneJumps(undefined, { prev: b("inside", m(-10), m(-5)), next: null }, live).prev).toBeNull();
     expect(laneJumps(undefined, { prev: null, next: b("later", m(-30), m(-20)) }, past).next?.id).toBe("later");
+  });
+});
+
+describe("neighbour blocks", () => {
+  it("draws the server's neighbours that are not loaded, once each", () => {
+    const loaded = [b("a", m(-5), m(-2))];
+    const older = b("older", m(-300), m(-290));
+    const merged = withNeighborBlocks(loaded, { t: { prev: older, next: null }, u: { prev: { ...older }, next: loaded[0]! } });
+    expect(merged.map((block) => block.id)).toEqual(["a", "older"]);
+  });
+
+  it("returns the loaded blocks as they are when nothing is new", () => {
+    const loaded = [b("a", m(-5), m(-2))];
+    expect(withNeighborBlocks(loaded, undefined)).toBe(loaded);
+    expect(withNeighborBlocks(loaded, { t: { prev: loaded[0]!, next: null } })).toBe(loaded);
   });
 });
 

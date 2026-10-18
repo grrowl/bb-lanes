@@ -78,6 +78,28 @@ export function laneJumps(series: LaneSeries | undefined, neighbors: LaneNeighbo
 }
 
 /**
+ * Blocks to draw: the loaded ones, plus the server's neighbours that are not
+ * loaded. A neighbour is a whole turn, so the turn a zip heads for is on
+ * screen during the glide, before the shell has loaded the history around it.
+ * A loaded block with the same id wins.
+ */
+export function withNeighborBlocks(blocks: readonly LaneBlock[], neighbors: Readonly<Record<string, LaneNeighbors>> | undefined): readonly LaneBlock[] {
+  if (!neighbors) return blocks;
+  let ids: Set<string> | null = null;
+  const extra: LaneBlock[] = [];
+  for (const known of Object.values(neighbors)) {
+    for (const block of [known.prev, known.next]) {
+      if (!block) continue;
+      ids ??= new Set(blocks.map((b) => b.id));
+      if (ids.has(block.id)) continue;
+      ids.add(block.id);
+      extra.push(block);
+    }
+  }
+  return extra.length > 0 ? [...blocks, ...extra] : blocks;
+}
+
+/**
  * Where a zip lands: the right edge of the new window, keeping the span. A
  * previous turn lands with its end 70% across, or with its start 10% across
  * when it is too long for that to show its start; a next turn lands with its

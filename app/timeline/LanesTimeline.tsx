@@ -46,7 +46,7 @@ import {
   useRegistrar,
   useTouchPan,
 } from "./hooks";
-import { NO_JUMPS, laneJumps, zipLanding, type LaneJumps } from "./jumps";
+import { NO_JUMPS, laneJumps, withNeighborBlocks, zipLanding, type LaneJumps } from "./jumps";
 import { LaneJumpers, jumperNavId, splitJumperId, type JumpSide } from "./Jumpers";
 import { withReportTitles } from "./labels";
 import { LinkingStyle, cssString } from "./linking";
@@ -82,7 +82,10 @@ export function LanesTimeline(props: TimelineProps) {
   const latest = useRef(props);
   latest.current = props;
   const describe = useCallback<Describe>((id) => latest.current.describeThread(id), []);
-  const blocks = useMemo(() => withReportTitles(props.blocks, handoffs, describe), [props.blocks, handoffs, describe]);
+  const blocks = useMemo(
+    () => withReportTitles(withNeighborBlocks(props.blocks, props.neighbors), handoffs, describe),
+    [props.blocks, props.neighbors, handoffs, describe],
+  );
 
   // Below 520px the names column is avatars only and each lane gains a caption line.
   const [narrow, setNarrow] = useState(false);

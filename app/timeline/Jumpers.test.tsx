@@ -107,17 +107,18 @@ describe("lane jumpers in the engine", () => {
     expect(screen.queryByRole("button", { name: /Jump to next turn/ })).toBeNull();
   });
 
-  it("zips to a turn only the server knows, and lands on it once it loads", async () => {
+  it("zips to a turn only the server knows, drawing it before the shell loads it", async () => {
     const far = b("Last week", m(-2995), m(-2990));
     const recent = b("Ship it", m(-3), m(-1));
     const { props, view } = setup([recent], { neighbors: { t: { prev: far, next: null } } });
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Jump to previous turn: Last week, 2d ago$/ })));
     const landing = { end: m(-2990) + 0.3 * SPAN, span: SPAN, live: false };
     expect(props.onViewportChange).toHaveBeenLastCalledWith(landing);
-    // The shell loads the window around it; the turn flashes when it arrives.
-    await act(async () => view.rerender(<LanesTimeline {...props} viewport={landing} blocks={[far, recent]} />));
     expect(document.activeElement).toBe(blockButton("Last week"));
     expect(blockButton("Last week").hasAttribute("data-landed")).toBe(true);
+    // The shell then loads the window around it; the same turn simply stays.
+    await act(async () => view.rerender(<LanesTimeline {...props} viewport={landing} blocks={[far, recent]} />));
+    expect(document.activeElement).toBe(blockButton("Last week"));
   });
 
   it("opens with Enter like any button in the roving tab order", async () => {
