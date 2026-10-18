@@ -4,7 +4,7 @@
 // per surface instead of React context.
 import { useMemo, useSyncExternalStore } from "react";
 import { experimental_usePluginId } from "@get-bb/plugin-sdk/app";
-import type { RowDensity, Viewport } from "../../shared/view";
+import type { Viewport } from "../../shared/view";
 import type { GroupMode, LaneFilter } from "./grouping/types";
 import {
   NAMES_WIDTH_MAX,
@@ -78,15 +78,14 @@ class SurfaceStore {
     if (this.persistTimer !== null) clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      const { groupMode, filter, span, density, collapsedGroups, collapsedLanes, namesWidth } = this.state;
+      const { groupMode, filter, span, collapsedGroups, collapsedLanes, namesWidthOverride } = this.state;
       writePreferences(this.preferencesStorageKey, {
         groupMode,
         filter,
         span,
-        density,
         collapsedGroups,
         collapsedLanes,
-        namesWidth,
+        namesWidthOverride,
       });
     }, PERSIST_DELAY_MS);
   }
@@ -115,7 +114,6 @@ export interface SurfaceActions {
   setFilter(filter: LaneFilter): void;
   setGroupMode(mode: GroupMode): void;
   setQuery(query: string): void;
-  setDensity(density: RowDensity): void;
   toggleGroup(id: string): void;
   toggleLane(id: string): void;
   /** Collapse or expand many groups at once ("Collapse all"). */
@@ -133,7 +131,6 @@ function bindActions(store: SurfaceStore): SurfaceActions {
     setFilter: (filter) => store.update({ filter }),
     setGroupMode: (groupMode) => store.update({ groupMode }),
     setQuery: (query) => store.update({ query }),
-    setDensity: (density) => store.update({ density }),
     toggleGroup: (id) => store.update((state) => ({ collapsedGroups: toggled(state.collapsedGroups, id) })),
     toggleLane: (id) => store.update((state) => ({ collapsedLanes: toggled(state.collapsedLanes, id) })),
     setGroupsCollapsed: (ids, collapsed) =>
@@ -146,7 +143,7 @@ function bindActions(store: SurfaceStore): SurfaceActions {
         return { collapsedGroups: [...next] };
       }),
     setNamesWidth: (width) =>
-      store.update({ namesWidth: Math.round(Math.min(NAMES_WIDTH_MAX, Math.max(NAMES_WIDTH_MIN, width))) }),
+      store.update({ namesWidthOverride: Math.round(Math.min(NAMES_WIDTH_MAX, Math.max(NAMES_WIDTH_MIN, width))) }),
     setGroupMenuOpen: (groupMenuOpen) => store.update({ groupMenuOpen }),
   };
 }

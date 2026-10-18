@@ -10,11 +10,9 @@
   --lanes-warn-wash: color-mix(in oklab, var(--lanes-warn) 14%, transparent);
   --lanes-danger-wash: color-mix(in oklab, var(--lanes-danger) 12%, transparent);
   --lanes-tile-shadow: 0 0 0 1px var(--border), 0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
-  --lanes-row: 48px;
   letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
 }
-.lanes-chrome[data-density="compact"] { --lanes-row: 36px; }
 
 /* ----- Tones: a dot, a glyph, or a chip coloured by state ----- */
 .lanes-tone-run { --tone: var(--lanes-run); --tone-wash: var(--lanes-run-wash); }
@@ -32,7 +30,6 @@
   font-size: 10px; font-weight: 500; letter-spacing: 0.3px; line-height: 1;
 }
 .lanes-avatar[data-logo] { background: var(--card); color: var(--foreground); box-shadow: var(--lanes-tile-shadow); }
-.lanes-chrome[data-density="compact"] .lanes-avatar { width: 22px; height: 22px; font-size: 9px; }
 
 /* ----- Row header cells ----- */
 .lanes-cell { position: relative; display: flex; align-items: center; height: 100%; min-width: 0; container-type: inline-size; }
@@ -43,9 +40,10 @@
 }
 
 /* The state tag collapses to nothing while the agent works and fades in when
- * it is free, waiting, or stuck. The label lingers while it collapses. */
+ * it is free, waiting, or stuck. The label lingers while it collapses. The
+ * title has priority: when the line is short the tag gives way first. */
 .lanes-state {
-  display: inline-grid; flex: none; grid-template-columns: 0fr; margin-left: 0; opacity: 0;
+  display: inline-grid; flex: 0 100 auto; min-width: 0; grid-template-columns: 0fr; margin-left: 0; opacity: 0;
   transition: grid-template-columns 320ms ease, margin-left 320ms ease, opacity 220ms ease;
 }
 .lanes-state[data-show] {
@@ -55,7 +53,7 @@
 .lanes-state > span {
   min-width: 0; overflow: hidden; padding: 0 5px; border-radius: 4px;
   background: var(--muted); color: var(--muted-foreground);
-  font-size: 11px; font-weight: 500; line-height: 16px; white-space: nowrap;
+  font-size: 11px; font-weight: 500; line-height: 16px; white-space: nowrap; text-overflow: ellipsis;
 }
 .lanes-state[data-state="waiting"] > span { background: var(--lanes-warn-wash); color: var(--lanes-warn); }
 .lanes-state[data-state="failed"] > span { background: var(--lanes-danger-wash); color: var(--lanes-danger); }
@@ -70,6 +68,14 @@
 .lanes-ghost-block { position: absolute; top: 0; bottom: 0; border-radius: 7px; background: color-mix(in oklab, var(--foreground) 6%, transparent); }
 .lanes-ghost-block[data-tone="run"] { background: var(--lanes-run-wash); }
 .lanes-ghost-block[data-tone="warn"] { background: var(--lanes-warn-wash); }
+
+/* Upstream's summary: muted counts with a state dot; "need you" in amber, pulsing. */
+.lanes-summary {
+  display: flex; gap: 10px; min-width: 0; overflow: hidden;
+  font-size: 12px; line-height: 16px; color: var(--muted-foreground); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.lanes-summary > span { display: inline-flex; flex: none; align-items: center; gap: 6px; }
+.lanes-summary > [data-kind="needs"] { color: var(--lanes-warn); }
 
 @keyframes lanes-pulse { 50% { opacity: 0.55; } }
 @keyframes lanes-rise { from { opacity: 0; transform: translateY(3px); } }

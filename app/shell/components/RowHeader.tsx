@@ -17,10 +17,9 @@ import {
 } from "@/components/ui/context-menu";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import type { GroupRow, LaneRow, RowDensity } from "../../../shared/view";
+import type { GroupRow, LaneRow } from "../../../shared/view";
 import type { ProviderInfo } from "../data/useLanesData";
 import type { GroupMeta, LaneMeta, LaneState } from "../grouping/types";
-import { WaitingGlyph } from "./glyphs";
 import { ProviderAvatar } from "./ProviderAvatar";
 
 const STATE_LABEL: Record<LaneState, string | null> = {
@@ -76,30 +75,31 @@ export function Highlighted({ text, terms }: { text: string; terms: readonly str
   return <>{parts}</>;
 }
 
-export function GroupCounts({ counts }: { counts: GroupRow["counts"] }) {
+/** Upstream's summary line: only the parts that are not zero, then the lane count. */
+export function groupSummary(counts: GroupRow["counts"]): { kind: "running" | "needs" | "failed" | "lanes"; text: string }[] {
+  const parts: { kind: "running" | "needs" | "failed" | "lanes"; text: string }[] = [];
+  if (counts.running > 0) parts.push({ kind: "running", text: `${counts.running} running` });
+  if (counts.waiting > 0) parts.push({ kind: "needs", text: `${counts.waiting} need you` });
+  if (counts.failed > 0) parts.push({ kind: "failed", text: `${counts.failed} failed` });
+  parts.push({ kind: "lanes", text: `${counts.total} ${counts.total === 1 ? "lane" : "lanes"}` });
+  return parts;
+}
+
+const SUMMARY_TONE = { running: "lanes-tone-run", needs: "lanes-tone-warn", failed: "lanes-tone-danger" } as const;
+
+export function GroupSummary({ counts }: { counts: GroupRow["counts"] }) {
   return (
-    <span className="lanes-group-text flex flex-none items-center gap-2 text-[11px] font-medium leading-4 tabular-nums">
-      {counts.waiting > 0 ? (
-        <span className="lanes-tone-warn lanes-toned inline-flex items-center gap-1" aria-label={`${counts.waiting} need you`}>
-          <WaitingGlyph />
-          {counts.waiting}
-        </span>
-      ) : null}
-      {counts.running > 0 ? (
-        <span className="lanes-tone-run lanes-toned inline-flex items-center gap-1.5" aria-label={`${counts.running} running`}>
-          <span className="lanes-dot" />
-          {counts.running}
-        </span>
-      ) : null}
-      {counts.failed > 0 ? (
-        <span className="lanes-tone-danger lanes-toned inline-flex items-center gap-1" aria-label={`${counts.failed} failed`}>
-          <Icon name="X" className="size-3" aria-hidden />
-          {counts.failed}
-        </span>
-      ) : null}
-      <span className="text-muted-foreground" aria-label={`${counts.total} ${counts.total === 1 ? "lane" : "lanes"}`}>
-        {counts.total}
-      </span>
+    <span className="lanes-summary">
+      {groupSummary(counts).map((part) =>
+        part.kind === "lanes" ? (
+          <span key={part.kind}>{part.text}</span>
+        ) : (
+          <span key={part.kind} className={SUMMARY_TONE[part.kind]} data-kind={part.kind}>
+            <span className="lanes-dot" aria-hidden="true" />
+            {part.text}
+          </span>
+        ),
+      )}
     </span>
   );
 }
@@ -115,13 +115,16 @@ export function GroupHeaderCell({
   provider: ProviderInfo | undefined;
   onToggle(): void;
 }) {
+  const summary = groupSummary(row.counts)
+    .map((part) => part.text)
+    .join(", ");
   return (
-    <div className="lanes-cell gap-2 pl-3 pr-3">
+    <div className="lanes-cell pl-3 pr-3">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={!row.collapsed}
-        aria-label={`${row.label}, ${row.counts.total} ${row.counts.total === 1 ? "lane" : "lanes"}`}
+        aria-label={`${row.label}${meta?.detail ? ` ${meta.detail}` : ""}, ${summary}`}
         className="flex min-w-0 flex-1 items-center gap-2 self-stretch rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <span className="lanes-chevron grid size-3.5 flex-none place-items-center text-muted-foreground" data-collapsed={row.collapsed ? "" : undefined}>
@@ -134,12 +137,14 @@ export function GroupHeaderCell({
         ) : (
           <Icon name={meta?.icon ?? "Folder"} className="size-3.5 flex-none text-muted-foreground" aria-hidden />
         )}
-        <span className="lanes-group-text min-w-0 truncate text-[12px] font-semibold leading-4 text-foreground">
-          {row.label}
-          {meta?.detail ? <span className="ml-1.5 font-normal text-muted-foreground">{meta.detail}</span> : null}
+        <span className="lanes-group-text grid min-w-0">
+          <span className="truncate text-[13px] font-semibold leading-[18px] text-foreground">
+            {row.label}
+            {meta?.detail ? <span className="ml-1.5 font-normal text-muted-foreground">{meta.detail}</span> : null}
+          </span>
+          <GroupSummary counts={row.counts} />
         </span>
       </button>
-      <GroupCounts counts={row.counts} />
     </div>
   );
 }
@@ -151,7 +156,6 @@ export interface LaneHeaderCellProps {
   provider: ProviderInfo | undefined;
   subtitle: string;
   terms: readonly string[];
-  density: RowDensity;
   highlighted: boolean;
   /** The row is hovered or focused: show its hover-only affordances. */
   revealed: boolean;
@@ -165,14 +169,13 @@ export function LaneHeaderCell({
   provider,
   subtitle,
   terms,
-  density,
   highlighted,
   revealed,
   actions,
 }: LaneHeaderCellProps) {
   const split = experimental_useSidebarThreadSplit(thread.id);
-  const avatar = density === "compact" ? 22 : 26;
-  const step = density === "compact" ? 18 : 22;
+  const avatar = 26;
+  const step = 22;
   const inset = 12;
   const centre = (depth: number) => inset + depth * step + avatar / 2 - 0.5;
 

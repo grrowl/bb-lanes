@@ -74,6 +74,12 @@ describe("Lanes nav panel", () => {
     expect(screen.getByText("chillidonut")).toBeTruthy();
     expect(screen.queryByText("Old experiment")).toBeNull();
     expect(screen.getByText("Write the migration")).toBeTruthy();
+    // Group headers summarise in upstream's words, hiding parts that are zero.
+    const group = screen.getByRole("button", { name: /^bb-lanes,/ });
+    expect(group.getAttribute("aria-label")).toBe("bb-lanes, 2 running, 1 need you, 3 lanes");
+    expect(within(group).getByText("1 need you")).toBeTruthy();
+    expect(within(group).queryByText(/failed/)).toBeNull();
+    expect(screen.getByRole("button", { name: /^chillidonut,/ }).getAttribute("aria-label")).toBe("chillidonut, 1 lane");
     expect(screen.getAllByText("Needs you").length).toBeGreaterThan(0);
     expect(slot.inspection.rpcCalls[0]).toMatchObject({ method: "lanes_window" });
     slot.lifecycle.unmount();
@@ -157,7 +163,7 @@ describe("Lanes chrome", () => {
       sidebarThreads,
     });
     expect(header.getByText("2 running")).toBeTruthy();
-    expect(header.getByText(/1 needs you/)).toBeTruthy();
+    expect(header.getByText("1 need you")).toBeTruthy();
     const hour = header.getByRole("radio", { name: "Last hour" });
     fireEvent.click(hour);
     expect(hour.getAttribute("aria-checked")).toBe("true");
@@ -170,7 +176,7 @@ describe("Lanes chrome", () => {
       pluginId: "lanes-test-accessory",
       sidebarThreads,
     });
-    expect(accessory.getByLabelText("2 running, 1 needs you")).toBeTruthy();
+    expect(accessory.getByLabelText("2 running, 1 need you")).toBeTruthy();
     accessory.lifecycle.unmount();
   });
 

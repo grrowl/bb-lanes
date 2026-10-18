@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { WaitingGlyph } from "./glyphs";
 import { Hint } from "./Hint";
 import { useLiveCounts } from "../data/live-counts";
 import { useSurface } from "../surface-store";
@@ -128,8 +127,8 @@ export function LanesHeaderContent() {
             className="lanes-tone-warn lanes-toned lanes-rise inline-flex items-center gap-1.5 rounded font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring"
             title="Show lanes that need you"
           >
-            <WaitingGlyph className="lanes-pulse" />
-            {counts.waiting} need{counts.waiting === 1 ? "s" : ""} you
+            <span className="lanes-dot" aria-hidden="true" />
+            {counts.waiting} need you
           </button>
         ) : null}
       </div>
@@ -145,7 +144,7 @@ export function LanesSidebarAccessory() {
   if (counts.running === 0 && counts.waiting === 0) return null;
   const label = [
     counts.running > 0 ? `${counts.running} running` : null,
-    counts.waiting > 0 ? `${counts.waiting} need${counts.waiting === 1 ? "s" : ""} you` : null,
+    counts.waiting > 0 ? `${counts.waiting} need you` : null,
   ]
     .filter(Boolean)
     .join(", ");

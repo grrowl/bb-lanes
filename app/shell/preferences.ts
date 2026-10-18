@@ -3,11 +3,9 @@
 // untrusted: each field is validated on its own, so one bad value falls back
 // to its default without discarding the rest.
 import { z } from "zod";
-import type { RowDensity } from "../../shared/view";
 import type { GroupMode, LaneFilter } from "./grouping/types";
 import { DEFAULT_SPAN, MAX_SPAN, MIN_SPAN } from "./time";
 
-export const NAMES_WIDTH_DEFAULT = 168;
 export const NAMES_WIDTH_MIN = 120;
 export const NAMES_WIDTH_MAX = 360;
 
@@ -19,20 +17,19 @@ const preferencesSchema = z.object({
     .catch("project"),
   filter: z.enum(["all", "active", "needs-you", "failed"]).catch("active"),
   span: z.number().min(MIN_SPAN).max(MAX_SPAN).catch(DEFAULT_SPAN),
-  density: z.enum(["comfortable", "compact"]).catch("comfortable"),
   collapsedGroups: idList.catch([]),
   collapsedLanes: idList.catch([]),
-  namesWidth: z.number().min(NAMES_WIDTH_MIN).max(NAMES_WIDTH_MAX).catch(NAMES_WIDTH_DEFAULT),
+  // Null until someone drags the column; until then the pane decides.
+  namesWidthOverride: z.number().min(NAMES_WIDTH_MIN).max(NAMES_WIDTH_MAX).nullable().catch(null),
 });
 
 export interface Preferences {
   groupMode: GroupMode;
   filter: LaneFilter;
   span: number;
-  density: RowDensity;
   collapsedGroups: readonly string[];
   collapsedLanes: readonly string[];
-  namesWidth: number;
+  namesWidthOverride: number | null;
 }
 
 /** `defaults` fill fields the stored value lacks (a surface's own starting point). */
@@ -60,4 +57,16 @@ export function writePreferences(key: string, preferences: Preferences): void {
   } catch {
     // Storage full or disabled: preferences simply do not persist.
   }
+}
+
+/**
+ * The names column width for a pane `paneWidth` px wide: roomy enough for a
+ * full thread title on a full pane, narrower on small panes, and never more
+ * than half the pane even when someone dragged it wider.
+ */
+export function namesColumnWidth(paneWidth: number, override: number | null): number {
+  const pane = Number.isFinite(paneWidth) ? paneWidth : 1_200;
+  const ceiling = Math.max(NAMES_WIDTH_MIN, Math.min(NAMES_WIDTH_MAX, Math.round(pane / 2)));
+  const preferred = override ?? Math.min(272, Math.max(168, Math.round(pane * 0.24)));
+  return Math.min(ceiling, Math.max(NAMES_WIDTH_MIN, preferred));
 }
