@@ -15,7 +15,6 @@ import {
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 import { Hint } from "./Hint";
-import { LinesMenu } from "./LinesMenu";
 import { GROUP_MODES, LANE_FILTERS, type GroupMode, type LaneFilter } from "../grouping/types";
 import type { SurfaceActions, SurfaceState } from "../surface-store";
 
@@ -200,15 +199,6 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
     </DropdownMenu>
   );
 
-  const linesMenu = (
-    <LinesMenu
-      styles={state.lineStyles}
-      onChange={actions.setLineStyle}
-      onReset={actions.resetLineStyles}
-      iconOnly={condensed}
-    />
-  );
-
   const collapseItems =
     groupIds.length > 0 ? (
       <>
@@ -229,7 +219,6 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
         <SearchField value={state.query} onChange={actions.setQuery} inputRef={searchRef} className="flex-1" />
         <StatusNote status={status} />
         {trailing}
-        {linesMenu}
         {/* The View menu holds Group by here, so the `g` key opens it. */}
         <DropdownMenu open={state.groupMenuOpen} onOpenChange={actions.setGroupMenuOpen}>
           <DropdownMenuTrigger asChild>
@@ -270,7 +259,6 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, trailing,
   return (
     <div className="flex items-center gap-2 px-3 pt-3 pb-2">
       {groupMenu}
-      {linesMenu}
       <FilterChips value={state.filter} counts={counts} onChange={actions.setFilter} />
       <SearchField value={state.query} onChange={actions.setQuery} inputRef={searchRef} className="w-56 max-w-[40%]" />
       <div className="ml-auto flex min-w-0 items-center gap-1">

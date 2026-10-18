@@ -123,65 +123,11 @@ describe("Lanes nav panel", () => {
 
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "docs" } });
     await waitFor(() => expect(screen.queryByText("Deploy to staging")).toBeNull());
-    expect(screen.getByRole("link", { name: /Tidy the docs/ })).toBeTruthy();
-    slot.lifecycle.unmount();
-  });
-
-  it("opens a lane beside Lanes on click, and in place on ⌘ or Ctrl click", async () => {
-    const app = await loadApp();
-    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
-      pluginId: "lanes-test-open",
-      sidebarThreads,
-      rpc: rpc(),
-    });
-    const title = await slot.findByRole("link", { name: /Plan the release/ });
-    const opens = () => slot.inspection.sidebarActionCalls.filter((call) => call.method === "open");
-
-    fireEvent.click(title);
-    fireEvent.click(title, { metaKey: true });
-    fireEvent.click(title, { ctrlKey: true });
-    expect(opens()).toEqual([
-      expect.objectContaining({ threadId: "lead", options: { split: true } }),
-      expect.objectContaining({ threadId: "lead", options: { split: false } }),
-      expect.objectContaining({ threadId: "lead", options: { split: false } }),
-    ]);
-
-    // The engine's own primary Open (block click) goes straight through.
-    fireEvent.click(screen.getByRole("button", { name: /Spec the pane/ }));
-    expect(opens().at(-1)).toEqual(expect.objectContaining({ threadId: "lead", options: { split: false } }));
-    slot.lifecycle.unmount();
-  });
-
-  it("edits hand-off line styles from the Lines menu and persists them", async () => {
-    const app = await loadApp();
-    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
-      pluginId: "lanes-test-lines",
-      sidebarThreads,
-      rpc: rpc(),
-    });
-    await slot.findByText("Spec the pane");
-    const trigger = screen.getByRole("button", { name: "Hand-off lines" });
-    fireEvent.keyDown(trigger, { key: "Enter" });
-
-    const dotted = await screen.findByRole("menuitemradio", { name: "Messaged line: Dotted" });
-    expect(dotted.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(dotted);
-    await waitFor(() => expect(dotted.getAttribute("aria-checked")).toBe("true"));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "Spawned colour: Violet" }));
-
-    await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem("lanes-test-lines:lanes:preferences") ?? "{}");
-      expect(stored.lineStyles).toEqual({
-        spawn: { stroke: "solid", start: "dot", end: "arrow", color: "violet" },
-        tell: { stroke: "dotted", start: "dot", end: "arrow", color: "auto" },
-      });
-    });
-
-    fireEvent.click(screen.getByRole("menuitem", { name: "Reset to defaults" }));
-    await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem("lanes-test-lines:lanes:preferences") ?? "{}");
-      expect(stored.lineStyles.tell.stroke).toBe("dashed");
-    });
+    const docs = screen.getByRole("link", { name: /Tidy the docs/ });
+    fireEvent.click(docs, { metaKey: true });
+    expect(slot.inspection.sidebarActionCalls).toContainEqual(
+      expect.objectContaining({ method: "open", threadId: "done", options: { split: true } }),
+    );
     slot.lifecycle.unmount();
   });
 

@@ -380,7 +380,6 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               highlightedThreadId,
               namesWidth: state.namesWidth,
               onNamesWidthChange: actions.setNamesWidth,
-              lineStyles: state.lineStyles,
               emptyState: (
                 <EmptyLanes
                   span={state.span}
