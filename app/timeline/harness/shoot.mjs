@@ -88,7 +88,7 @@ const SHOTS = {
   "span-7d-dark": { query: "theme=dark&elapsed=2&speed=0&span=7d" },
   "collapsed-group": { query: "elapsed=2&speed=0&collapse=project:chillidonut&span=1h" },
   compact: { query: "elapsed=2&speed=0&density=compact" },
-  "lines-styles": { query: "elapsed=2&speed=0&span=1h&spawn=dotted,circle,arrow,violet&tell=solid,dot,arrow,green" },
+  "lines-1h": { query: "elapsed=2&speed=0&span=1h" },
   "line-hover": {
     query: "elapsed=2&speed=0&span=1h",
     async act(page) {

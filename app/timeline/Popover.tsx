@@ -139,14 +139,13 @@ export function BlockTooltip(props: TooltipProps) {
 
 export interface DecisionProps extends PlacementProps {
   id: string;
-  now: number;
   describe: Describe;
   onDecide(decision: "approve" | "reject"): void;
   onOpen(split: boolean): void;
 }
 
 export function DecisionPopover(props: DecisionProps) {
-  const { id, block, now, describe, onDecide, onOpen, up } = props;
+  const { id, block, describe, onDecide, onOpen, up } = props;
   const ref = useRef<HTMLDivElement>(null);
   usePopoverPlacement(ref, props, "end");
   const ask = block.ask;

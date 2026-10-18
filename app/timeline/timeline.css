@@ -56,9 +56,6 @@
   --bl-hatch: color-mix(in srgb, var(--bl-text) 26%, transparent);
   --bl-bar-failed: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
   --bl-dim: 0.35;
-  /* Hand-off line colours beyond the reference's three states. */
-  --bl-green-fg: #1a7f4b;
-  --bl-violet-fg: #6e56cf;
 }
 
 /* Dark mode: follows a .dark class or data-theme="dark" on any ancestor, e.g. <html> */
@@ -98,8 +95,6 @@
   --bl-tip-dot: rgba(0, 0, 0, 0.4);
   --bl-tip-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
   --bl-dim: 0.4;
-  --bl-green-fg: #4fd18b;
-  --bl-violet-fg: #b19cff;
 }
 
 .bl {
@@ -356,8 +351,9 @@
   pointer-events: none;
   transition: opacity 220ms ease 80ms;
 }
-/* Hand-off lines: the reference's 1px dashed rail, with a stroke, cap and
- * colour per kind (lineStyles). "auto" colours follow the target turn. */
+/* Hand-off lines: the reference's 1px rail, with the stroke, caps and colour
+ * fixed per kind in HANDOFF_LINES: Created red solid, Messaged blue dashed,
+ * Ended red solid, Forked neutral dotted. */
 .bl-curve {
   fill: none;
   stroke: var(--bl-lc-line);
@@ -397,21 +393,9 @@
   --bl-lc: var(--bl-run-fg);
   --bl-lc-line: var(--bl-run-edge);
 }
-[data-color="amber"] {
-  --bl-lc: var(--bl-warn-fg);
-  --bl-lc-line: color-mix(in srgb, var(--bl-warn-fg) 55%, transparent);
-}
 [data-color="red"] {
   --bl-lc: var(--bl-danger-fg);
-  --bl-lc-line: color-mix(in srgb, var(--bl-danger-fg) 55%, transparent);
-}
-[data-color="green"] {
-  --bl-lc: var(--bl-green-fg);
-  --bl-lc-line: color-mix(in srgb, var(--bl-green-fg) 55%, transparent);
-}
-[data-color="violet"] {
-  --bl-lc: var(--bl-violet-fg);
-  --bl-lc-line: color-mix(in srgb, var(--bl-violet-fg) 55%, transparent);
+  --bl-lc-line: color-mix(in srgb, var(--bl-danger-fg) 60%, transparent);
 }
 .bl-curves linearGradient {
   color: var(--bl-lc-line);
@@ -520,6 +504,10 @@
   top: var(--bl-inset);
   bottom: var(--bl-inset);
   min-width: 6px;
+  /* An opaque card beneath each block: the reference's translucent running
+   * tint looks the same, and hand-off lines always pass under blocks. */
+  border-radius: var(--bl-radius);
+  background: var(--bl-card);
 }
 /* Running and waiting blocks grow out of "now" from nothing, so they never poke past it */
 .bl-slot:is([data-status="running"], [data-status="waiting"]),

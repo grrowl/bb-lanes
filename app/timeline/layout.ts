@@ -3,7 +3,7 @@
 // that keeps dense history cheap to draw, the merged activity strip of a
 // collapsed group, and hand-off curve endpoints. Pure functions, unit tested.
 import type { BlockStatus, LaneBlock, LaneHandoff } from "../../shared/model";
-import type { LineColor, Row, RowDensity } from "../../shared/view";
+import type { Row, RowDensity } from "../../shared/view";
 
 // ----- Rows -----
 
@@ -61,6 +61,17 @@ export function layoutRows(rows: Row[], density: RowDensity): RowLayout {
   });
   for (const threadId of laneRowByThread.keys()) proxyRowByThread.delete(threadId);
   return { rows, tops, heights, total: y, laneRowByThread, proxyRowByThread };
+}
+
+export function rowKey(row: Row): string {
+  return `${row.kind}:${row.id}`;
+}
+
+/** Index of a row by id (a lane's thread id or a group's id), or -1. */
+export function rowIndexById(layout: RowLayout, id: string): number {
+  const lane = layout.laneRowByThread.get(id);
+  if (lane !== undefined) return lane;
+  return layout.rows.findIndex((r) => r.id === id);
 }
 
 /** The row a thread is drawn in, if any: its own lane, else the row that hides it. */
@@ -341,15 +352,13 @@ export interface Curve {
   to: CurveEnd;
   /** The recipient's turn is still going, so the curve flows. */
   live: boolean;
-  /** The recipient turn's state, which "auto" line colours follow. */
-  targetStatus: BlockStatus;
 }
 
 /**
  * Curves to draw for the hand-offs overlapping [from, to). A curve starts on
- * the sender's lane at the moment of the hand-off and ends at the start of the
- * recipient's turn. An end whose thread is hidden by a collapsed row lands on
- * that row; an end whose thread is not shown at all becomes a fading stub.
+ * the sender's lane at the moment of the hand-off and lands on the target
+ * turn. An end whose thread is hidden by a collapsed row lands on that row; an
+ * end whose thread is not shown at all becomes a fading stub.
  */
 export function handoffCurves(
   handoffs: readonly LaneHandoff[],
@@ -363,8 +372,11 @@ export function handoffCurves(
     const target = index.byId.get(handoff.toBlockId);
     if (!target) continue;
     const source = handoff.fromBlockId ? index.byId.get(handoff.fromBlockId) : undefined;
-    const t1 = source ? Math.max(source.start, Math.min(handoff.at, target.start)) : Math.min(handoff.at, target.start);
-    const t2 = target.start;
+    // Leave the sender at the moment it happened, inside its turn; land on the
+    // target's start, or at that moment when the target was already under way
+    // (an ended child reporting into its parent's running turn).
+    const t1 = source ? Math.max(source.start, handoff.at) : handoff.at;
+    const t2 = Math.max(target.start, t1);
     if (Math.max(t1, t2) < from || Math.min(t1, t2) >= to) continue;
     const a = rowForThread(layout, handoff.fromThreadId);
     const b = rowForThread(layout, handoff.toThreadId);
@@ -375,19 +387,9 @@ export function handoffCurves(
       from: { t: t1, row: a?.index ?? null, proxy: a?.proxy ?? false },
       to: { t: t2, row: b?.index ?? null, proxy: b?.proxy ?? false },
       live: target.status === "running" || target.status === "waiting",
-      targetStatus: target.status,
     });
   }
   return curves;
-}
-
-/** "auto" follows the target turn: running blue, waiting amber, failed red, else neutral. */
-export function lineColor(color: LineColor, targetStatus: BlockStatus): Exclude<LineColor, "auto"> {
-  if (color !== "auto") return color;
-  if (targetStatus === "running") return "blue";
-  if (targetStatus === "waiting") return "amber";
-  if (targetStatus === "failed") return "red";
-  return "neutral";
 }
 
 /** Below this horizontal distance a hand-off is drawn as a connector, not an S-curve. */

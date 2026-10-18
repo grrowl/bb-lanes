@@ -87,7 +87,7 @@ function block(spec: BlockSpec, threads: Map<string, FixtureThread>): LaneBlock 
 }
 
 function handoff(
-  kind: "spawn" | "tell",
+  kind: LaneHandoff["kind"],
   from: string,
   fromBlock: string | null,
   to: string,
@@ -182,6 +182,7 @@ export function scenario(base: number, elapsed: number, options: ScenarioOptions
     handoff("spawn", "thr_coord", "c2", "thr_engine", "e1", t(-18.5)),
     handoff("spawn", "thr_coord", "c2", "thr_shell", "s1", t(-18.45)),
     handoff("tell", "thr_backend", "b1", "thr_coord", "c3", t(-9.3)),
+    handoff("end", "thr_shell", "s1", "thr_coord", "c3", t(-8)),
     handoff("tell", "thr_coord", "c3", "thr_backend", "b2", t(-5.7)),
   );
   const pushDecision = decided("s2") ?? (at(11) ? "approve" : null);
@@ -211,7 +212,10 @@ export function scenario(base: number, elapsed: number, options: ScenarioOptions
     { id: "m3", thread: "thr_billing", title: "Re-run the migration", start: t(-3), end: at(13) ? t(13) : null, tools: ["command"] },
     { id: "k1", thread: "thr_keys", title: "Sync the CRM", start: t(-27), end: t(-20.5), status: "failed", tools: ["mcp"] },
   );
-  handoffs.push(handoff("tell", "thr_research", "r1", "thr_writer", "w1", t(-16.2)));
+  handoffs.push(
+    handoff("tell", "thr_research", "r1", "thr_writer", "w1", t(-16.2)),
+    handoff("fork", "thr_billing", "m1", "thr_keys", "k1", t(-27.2)),
+  );
   if (at(4)) {
     specs.push({ id: "v2", thread: "thr_review", title: "Review the pricing copy", start: t(4.2), end: at(15) ? t(15) : null, tools: ["edit"], sender: "thr_writer" });
     handoffs.push(handoff("tell", "thr_writer", "w1", "thr_review", "v2", t(4)));
@@ -244,7 +248,7 @@ export function scenario(base: number, elapsed: number, options: ScenarioOptions
   handoffs.push(handoff("spawn", "thr_flaky", "f1", "thr_bisect", "x1", t(-13.9)));
   if (at(15)) {
     specs.push({ id: "f2", thread: "thr_flaky", title: "Fix the race in the runner", start: t(15.3), end: null, tools: ["edit"], sender: "thr_bisect" });
-    handoffs.push(handoff("tell", "thr_bisect", "x1", "thr_flaky", "f2", t(15.1)));
+    handoffs.push(handoff("end", "thr_bisect", "x1", "thr_flaky", "f2", t(15)));
   }
   if (at(9.5)) {
     specs.push({ id: "d3", thread: "thr_docs", title: "Publish the docs", start: t(9.6), end: at(11.5) ? t(11.5) : null, status: "done", tools: ["command"] });

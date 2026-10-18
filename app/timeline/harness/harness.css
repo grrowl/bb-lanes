@@ -52,8 +52,7 @@ body {
 .dark .hx-seg {
   background: rgba(255, 255, 255, 0.06);
 }
-.hx-seg button,
-.hx-lines select {
+.hx-seg button {
   padding: 2px 8px;
   border: 0;
   border-radius: 6px;
@@ -71,17 +70,6 @@ body {
   background: #19191b;
   box-shadow: 0 0 0 1px #2a2a2e;
   color: #fff;
-}
-.hx-lines {
-  display: inline-flex;
-  gap: 12px;
-}
-.hx-lines select {
-  padding: 1px 2px;
-  background: rgba(0, 0, 0, 0.05);
-}
-.dark .hx-lines select {
-  background: rgba(255, 255, 255, 0.06);
 }
 .hx-stage {
   display: flex;

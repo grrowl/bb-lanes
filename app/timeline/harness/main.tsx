@@ -3,21 +3,10 @@
 // bb theme for the page. URL parameters make screenshots reproducible:
 //   ?theme=dark&span=1h&density=compact&scenario=stress&elapsed=6&speed=0
 //   &width=480&collapse=project:infra&empty=1&highlight=thr_engine
-//   &spawn=dotted,circle,arrow,violet&tell=solid,none,arrow,auto
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { LaneBlock } from "../../../shared/model";
-import {
-  DEFAULT_LINE_STYLES,
-  type HandoffLineStyle,
-  type HandoffLineStyles,
-  type LineCap,
-  type LineColor,
-  type LineStroke,
-  type Row,
-  type RowDensity,
-  type Viewport,
-} from "../../../shared/view";
+import type { Row, RowDensity, Viewport } from "../../../shared/view";
 import {
   SCRIPT_MINUTES,
   describeFixture,
@@ -79,10 +68,6 @@ function Harness() {
   const [decisions, setDecisions] = useState(() => new Map<string, "approve" | "reject">());
   const [decidedAt, setDecidedAt] = useState(() => new Map<string, number>());
   const [namesWidth, setNamesWidth] = useState(Number(params.get("names") ?? 0) || undefined);
-  const [lineStyles, setLineStyles] = useState<HandoffLineStyles>(() => ({
-    spawn: { ...DEFAULT_LINE_STYLES.spawn, ...parseLineStyle(params.get("spawn")) },
-    tell: { ...DEFAULT_LINE_STYLES.tell, ...parseLineStyle(params.get("tell")) },
-  }));
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -154,7 +139,6 @@ function Harness() {
         />
         <Seg value={viewport.live ? "live" : ""} options={["live"]} onChange={() => setViewport((v) => ({ ...v, live: true }))} />
         <Seg value={density} options={["comfortable", "compact"]} onChange={(d) => setDensity(d as RowDensity)} />
-        <LineControls styles={lineStyles} onChange={setLineStyles} />
       </div>
       <div className="hx-stage">
         <div className="bl-theme hx-tray" style={width ? { flex: `0 0 ${width}px` } : undefined}>
@@ -190,7 +174,6 @@ function Harness() {
               highlightedThreadId={params.get("highlight")}
               namesWidth={namesWidth}
               onNamesWidthChange={setNamesWidth}
-              lineStyles={lineStyles}
             />
           </div>
         </div>
@@ -206,54 +189,6 @@ function Seg({ value, options, onChange }: { value: string; options: string[]; o
         <button key={option} type="button" aria-pressed={option === value} onClick={() => onChange(option)}>
           {option}
         </button>
-      ))}
-    </span>
-  );
-}
-
-const STROKES: LineStroke[] = ["solid", "dashed", "dotted"];
-const CAPS: LineCap[] = ["none", "dot", "circle", "arrow"];
-const COLORS: LineColor[] = ["auto", "neutral", "blue", "red", "amber", "green", "violet"];
-
-/** `?spawn=dotted,circle,arrow,violet` → a partial line style. */
-function parseLineStyle(value: string | null): Partial<HandoffLineStyle> {
-  if (!value) return {};
-  const [stroke, start, end, color] = value.split(",");
-  const pick = <T extends string>(options: readonly T[], v: string | undefined) =>
-    options.includes(v as T) ? (v as T) : undefined;
-  const style: Partial<HandoffLineStyle> = {};
-  const s = pick(STROKES, stroke);
-  const a = pick(CAPS, start);
-  const b = pick(CAPS, end);
-  const c = pick(COLORS, color);
-  if (s) style.stroke = s;
-  if (a) style.start = a;
-  if (b) style.end = b;
-  if (c) style.color = c;
-  return style;
-}
-
-/** Hand-off line styles per kind, as the shell's "Lines" menu sets them. */
-function LineControls({ styles, onChange }: { styles: HandoffLineStyles; onChange(next: HandoffLineStyles): void }) {
-  const field = <K extends keyof HandoffLineStyle>(kind: "spawn" | "tell", key: K, options: readonly string[]) => (
-    <select
-      value={styles[kind][key]}
-      aria-label={`${kind} ${key}`}
-      onChange={(event) => onChange({ ...styles, [kind]: { ...styles[kind], [key]: event.target.value } })}
-    >
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
-  );
-  return (
-    <span className="hx-lines">
-      {(["spawn", "tell"] as const).map((kind) => (
-        <span key={kind}>
-          {kind} {field(kind, "stroke", STROKES)} {field(kind, "start", CAPS)}→{field(kind, "end", CAPS)} {field(kind, "color", COLORS)}
-        </span>
       ))}
     </span>
   );

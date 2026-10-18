@@ -6,10 +6,11 @@
 // anchor time plus a culling range) in percent of the track; the controller
 // slides and pans by writing transforms. Rows are virtualised; only blocks in
 // the frame's range are drawn, and dense history collapses into clusters.
-import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
-import type { LaneBlock, LaneHandoff } from "../../shared/model";
-import { DEFAULT_LINE_STYLES, type GroupRow, type LaneRow, type Row, type TimelineProps } from "../../shared/view";
+import type { LaneBlock } from "../../shared/model";
+import type { GroupRow, LaneRow, TimelineProps } from "../../shared/view";
+import { HeaderCell, JumpToNow, LineTip, RowBands, ScrubBar } from "./Chrome";
 import { ViewController, type Frame } from "./controller";
 import { CurveCaps, Curves } from "./Curves";
 import { EmptyState } from "./EmptyState";
@@ -22,6 +23,8 @@ import {
   indexBlocks,
   layoutRows,
   rowAtOffset,
+  rowIndexById,
+  rowKey,
   trackItems,
   visibleRowRange,
   type ActivityStrip,
@@ -31,13 +34,22 @@ import {
 } from "./layout";
 import * as nav from "./navigation";
 import { BlockTooltip, DecisionPopover, type DetailState } from "./Popover";
-import { UiStore, useUi, type UiState } from "./store";
-import { clamp, formatClock, formatPointerTime, timeAtFraction } from "./time";
+import { UiStore } from "./store";
+import {
+  NAMES_DEFAULT,
+  NAMES_MAX,
+  NAMES_MIN,
+  trapTab,
+  useFreshBlocks,
+  useNamesResize,
+  usePrefersReducedMotion,
+  useRegistrar,
+  useTouchPan,
+} from "./hooks";
+import { LinkingStyle, cssString } from "./linking";
+import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
 
-export const NAMES_MIN = 120;
-export const NAMES_MAX = 360;
-export const NAMES_DEFAULT = 168;
 const OVERSCAN_ROWS = 6;
 const STRIP_BIN_PX = 3;
 
@@ -53,7 +65,6 @@ interface Focusable {
 
 export function LanesTimeline(props: TimelineProps) {
   const { rows, blocks, handoffs, now, viewport, density, highlightedThreadId, className } = props;
-  const lineStyles = props.lineStyles ?? DEFAULT_LINE_STYLES;
   const rawId = useId();
   const uid = useMemo(() => `bl${rawId.replace(/[^a-zA-Z0-9]/g, "")}`, [rawId]);
 
@@ -241,10 +252,23 @@ export function LanesTimeline(props: TimelineProps) {
 
   // ----- Curves and strips -----
 
-  const curves = useMemo(
+  const allCurves = useMemo(
     () => handoffCurves(handoffs, index, layout, activeFrame.from, activeFrame.to),
     [handoffs, index, layout, activeFrame.from, activeFrame.to],
   );
+  // Like blocks, lines are only drawn near the rows in view: a week of
+  // hand-offs across hundreds of lanes is otherwise thousands of paths.
+  const curves = useMemo(() => {
+    if (layout.rows.length === 0 || range.last < range.first) return allCurves;
+    const top = layout.tops[range.first]!;
+    const bottom = layout.tops[range.last]! + layout.heights[range.last]!;
+    const y = (row: number | null) => (row === null ? null : layout.tops[row]!);
+    return allCurves.filter((curve) => {
+      const a = y(curve.from.row) ?? y(curve.to.row)!;
+      const b = y(curve.to.row) ?? a;
+      return Math.max(a, b) >= top && Math.min(a, b) <= bottom;
+    });
+  }, [allCurves, layout, range]);
 
   const stripCache = useRef(new Map<string, { key: string; index: BlockIndex; strip: ActivityStrip }>());
   const stripFor = (row: GroupRow): ActivityStrip => {
@@ -873,7 +897,6 @@ export function LanesTimeline(props: TimelineProps) {
                     span={activeFrame.span}
                     width={activeFrame.width || 960}
                     uid={uid}
-                    styles={lineStyles}
                   />
                   {renderedRows.map((i) => {
                     const row = layout.rows[i]!;
@@ -914,7 +937,7 @@ export function LanesTimeline(props: TimelineProps) {
                       />
                     );
                   })}
-                  <CurveCaps curves={curves} layout={layout} anchor={activeFrame.anchor} span={activeFrame.span} styles={lineStyles} />
+                  <CurveCaps curves={curves} layout={layout} anchor={activeFrame.anchor} span={activeFrame.span} />
                 </div>
               </div>
               <div className="bl-nowclip" aria-hidden="true">
@@ -932,7 +955,6 @@ export function LanesTimeline(props: TimelineProps) {
                     rowHeight={layout.heights[openRowIndex]!}
                     up={openUp}
                     controller={controller}
-                    now={activeFrame.now}
                     describe={describe}
                     onDecide={(decision) => decide(openBlock, decision)}
                     onOpen={(split) => openThread(openBlock.threadId, split)}
@@ -990,16 +1012,6 @@ export function LanesTimeline(props: TimelineProps) {
 
 // ----- Pieces -----
 
-function rowKey(row: Row): string {
-  return `${row.kind}:${row.id}`;
-}
-
-function rowIndexById(layout: RowLayout, id: string): number {
-  const lane = layout.laneRowByThread.get(id);
-  if (lane !== undefined) return lane;
-  return layout.rows.findIndex((r) => r.id === id);
-}
-
 function toNavItem(item: TrackItem): nav.NavItem {
   return {
     id: item.key,
@@ -1026,253 +1038,6 @@ function withPinned(items: TrackItem[], pinned: Focusable, index: BlockIndex): T
   return [...items, item].sort((a, b) => a.start - b.start);
 }
 
-function cssString(value: string): string {
-  return value.replace(/["\\]/g, "\\$&");
-}
-
-function useRegistrar(set: Set<HTMLElement>) {
-  return useCallback(
-    (el: HTMLElement | null) => {
-      // Re-registration on remount (tick layers are keyed by mode) is handled by Set semantics.
-      for (const existing of set) if (!existing.isConnected) set.delete(existing);
-      if (el) set.add(el);
-    },
-    [set],
-  );
-}
-
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
-  );
-  useEffect(() => {
-    const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!query) return;
-    const onChange = () => setReduced(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
-}
-
-/** Block ids that arrived after the first render; they grow in rather than pop. */
-function useFreshBlocks(blocks: readonly LaneBlock[]): ReadonlySet<string> {
-  const seen = useRef<Set<string> | null>(null);
-  const [fresh, setFresh] = useState<ReadonlySet<string>>(EMPTY_SET);
-  useEffect(() => {
-    if (seen.current === null) {
-      seen.current = new Set(blocks.map((b) => b.id));
-      return;
-    }
-    const arrived = blocks.filter((b) => !seen.current!.has(b.id)).map((b) => b.id);
-    for (const id of arrived) seen.current.add(id);
-    if (arrived.length === 0) return;
-    setFresh(new Set(arrived));
-    const timer = window.setTimeout(() => setFresh(EMPTY_SET), 900);
-    return () => window.clearTimeout(timer);
-  }, [blocks]);
-  return fresh;
-}
-const EMPTY_SET: ReadonlySet<string> = new Set();
-
-function useTouchPan(ref: React.RefObject<HTMLDivElement | null>, controller: ViewController) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let start: { id: number; x: number; y: number; panning: boolean } | null = null;
-    const pinch = new Map<number, number>();
-    let pinchStart: { distance: number; span: number; fraction: number } | null = null;
-    const onDown = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      pinch.set(event.pointerId, event.clientX);
-      if (pinch.size === 2) {
-        const [a, b] = [...pinch.values()] as [number, number];
-        const rect = el.getBoundingClientRect();
-        pinchStart = {
-          distance: Math.max(8, Math.abs(a - b)),
-          span: controller.view.span,
-          fraction: clamp(((a + b) / 2 - rect.left) / rect.width, 0, 1),
-        };
-        if (start?.panning) controller.dragEnd(event.timeStamp);
-        start = null;
-        return;
-      }
-      start = { id: event.pointerId, x: event.clientX, y: event.clientY, panning: false };
-    };
-    const onMove = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      if (pinch.has(event.pointerId)) pinch.set(event.pointerId, event.clientX);
-      if (pinchStart && pinch.size === 2) {
-        const [a, b] = [...pinch.values()] as [number, number];
-        controller.zoomTo(pinchStart.span * (pinchStart.distance / Math.max(8, Math.abs(a - b))), pinchStart.fraction);
-        return;
-      }
-      if (!start || start.id !== event.pointerId) return;
-      if (!start.panning) {
-        const dx = Math.abs(event.clientX - start.x);
-        const dy = Math.abs(event.clientY - start.y);
-        if (dx < 6 || dx < dy) return;
-        start.panning = true;
-        controller.dragStart(start.x, event.timeStamp);
-      }
-      controller.dragMove(event.clientX, event.timeStamp);
-    };
-    const onUp = (event: PointerEvent) => {
-      if (event.pointerType !== "touch") return;
-      pinch.delete(event.pointerId);
-      if (pinch.size < 2) pinchStart = null;
-      if (start?.id === event.pointerId) {
-        if (start.panning) controller.dragEnd(event.timeStamp);
-        start = null;
-      }
-    };
-    el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
-    return () => {
-      el.removeEventListener("pointerdown", onDown);
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onUp);
-    };
-  }, [ref, controller]);
-}
-
-function useNamesResize(
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  width: number,
-  onCommit: (width: number) => void,
-) {
-  const drag = useRef<{ x: number; width: number; current: number } | null>(null);
-  const commit = useRef(onCommit);
-  commit.current = onCommit;
-  const setVar = (w: number) => rootRef.current?.style.setProperty("--bl-names-w", `${w}px`);
-  return {
-    onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      event.currentTarget.setPointerCapture(event.pointerId);
-      drag.current = { x: event.clientX, width, current: width };
-      rootRef.current?.setAttribute("data-resizing", "");
-    },
-    onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-      const d = drag.current;
-      if (!d) return;
-      d.current = Math.round(clamp(d.width + event.clientX - d.x, NAMES_MIN, NAMES_MAX));
-      setVar(d.current);
-    },
-    onPointerUp() {
-      const d = drag.current;
-      drag.current = null;
-      rootRef.current?.removeAttribute("data-resizing");
-      if (d && d.current !== d.width) commit.current(d.current);
-    },
-    onDoubleClick() {
-      setVar(NAMES_DEFAULT);
-      commit.current(NAMES_DEFAULT);
-    },
-    onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-      const step = event.shiftKey ? 32 : 8;
-      const next =
-        event.key === "ArrowLeft" ? width - step : event.key === "ArrowRight" ? width + step : event.key === "Home" ? NAMES_MIN : event.key === "End" ? NAMES_MAX : null;
-      if (next === null) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const w = clamp(next, NAMES_MIN, NAMES_MAX);
-      setVar(w);
-      commit.current(w);
-    },
-  };
-}
-
-function trapTab(event: ReactKeyboardEvent, container: HTMLElement) {
-  const focusables = Array.from(container.querySelectorAll<HTMLElement>("button, [href], [tabindex]:not([tabindex='-1'])"));
-  if (focusables.length === 0) return;
-  const first = focusables[0]!;
-  const last = focusables[focusables.length - 1]!;
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-}
-
-// Row backgrounds: separators, group bands, the highlighted thread. Hover and
-// hand-off partner tints come from LinkingStyle so these never re-render on hover.
-function RowBands({
-  layout,
-  renderedRows,
-  highlightedThreadId,
-}: {
-  layout: RowLayout;
-  renderedRows: number[];
-  highlightedThreadId: string | null;
-}) {
-  return (
-    <div className="bl-bands" aria-hidden="true">
-      {renderedRows.map((i) => {
-        const row = layout.rows[i]!;
-        return (
-          <div
-            key={rowKey(row)}
-            className="bl-band"
-            data-kind={row.kind}
-            data-row={row.id}
-            data-collapsed={row.kind === "group" && row.collapsed ? "" : undefined}
-            data-first={i === 0 ? "" : undefined}
-            data-highlighted={row.kind === "lane" && row.id === highlightedThreadId ? "" : undefined}
-            style={{ transform: `translateY(${layout.tops[i]}px)`, height: layout.heights[i] }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function HeaderCell({
-  row,
-  top,
-  height,
-  highlighted,
-  hover,
-  selection,
-  render,
-}: {
-  row: Row;
-  top: number;
-  height: number;
-  highlighted: boolean;
-  hover: UiStore;
-  selection: UiStore;
-  render: TimelineProps["renderRowHeader"];
-}) {
-  const hovered = useUi(
-    hover,
-    useCallback((s) => s.hoverRow === row.id, [row.id]),
-  );
-  const focused = useUi(
-    selection,
-    useCallback((s) => s.focusWithin && s.rovingRow === row.id, [row.id]),
-  );
-  return (
-    <div
-      className="bl-name"
-      data-kind={row.kind}
-      data-row={row.id}
-      data-depth={row.depth}
-      data-hovered={hovered ? "" : undefined}
-      data-focused={focused ? "" : undefined}
-      data-highlighted={highlighted ? "" : undefined}
-      style={{ transform: `translateY(${top}px)`, height }}
-    >
-      {render(row, { hovered, focused })}
-    </div>
-  );
-}
-
 /** A lane's open blocks; they are its latest, so only the tail is scanned. */
 function openBlocksOf(index: BlockIndex, threadId: string): LaneBlock[] {
   const series = index.byThread.get(threadId);
@@ -1285,170 +1050,3 @@ function openBlocksOf(index: BlockIndex, threadId: string): LaneBlock[] {
   return open;
 }
 
-/** The small dark chip that names a hovered hand-off line. */
-const LineTip = forwardRef<
-  HTMLDivElement,
-  { hover: UiStore; handoffById: ReadonlyMap<string, LaneHandoff>; describe: Describe }
->(function LineTip({ hover, handoffById, describe }, ref) {
-  const hoverItem = useUi(hover, selectHoverItem);
-  const handoff = hoverItem?.startsWith("h:") ? handoffById.get(hoverItem.slice(2)) : undefined;
-  return (
-    <div ref={ref} className="bl-line-tip" data-show={handoff ? "" : undefined} aria-hidden="true">
-      {handoff && (
-        <span>
-          {handoff.kind === "spawn" ? "Spawned" : "Messaged"} · {describe(handoff.fromThreadId).title} →{" "}
-          {describe(handoff.toThreadId).title} · {formatClock(handoff.at)}
-        </span>
-      )}
-    </div>
-  );
-});
-
-/**
- * Where the window sits in the loaded history, like a horizontal scrollbar:
- * drag the thumb to scrub, click the bar to glide there.
- */
-function ScrubBar({ controller }: { controller: ViewController }) {
-  const drag = useRef<{ x: number; width: number } | null>(null);
-  const thumbRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      controller.scrubThumb = el;
-      if (el) controller.apply(controller.clock.read());
-    },
-    [controller],
-  );
-  return (
-    <div
-      className="bl-scrub"
-      aria-hidden="true"
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        const bar = event.currentTarget.getBoundingClientRect();
-        if ((event.target as Element).closest(".bl-scrub-thumb")) {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          drag.current = { x: event.clientX, width: bar.width };
-          event.currentTarget.dataset.dragging = "";
-        } else {
-          controller.scrubTo(clamp((event.clientX - bar.left) / bar.width, 0, 1));
-        }
-      }}
-      onPointerMove={(event) => {
-        const d = drag.current;
-        if (!d) return;
-        controller.scrubBy((event.clientX - d.x) / d.width);
-        d.x = event.clientX;
-      }}
-      onPointerUp={(event) => {
-        if (!drag.current) return;
-        drag.current = null;
-        delete event.currentTarget.dataset.dragging;
-        controller.settle();
-      }}
-    >
-      <div className="bl-scrub-rail">
-        <div ref={thumbRef} className="bl-scrub-thumb" />
-      </div>
-    </div>
-  );
-}
-
-function JumpToNow({ visible, waiting, onJump }: { visible: boolean; waiting: number; onJump: () => void }) {
-  return (
-    <button
-      type="button"
-      className="bl-jump"
-      data-visible={visible ? "" : undefined}
-      tabIndex={visible ? 0 : -1}
-      aria-hidden={!visible}
-      onClick={onJump}
-    >
-      {waiting > 0 && (
-        <span className="bl-jump-needs">
-          <span className="bl-jump-dot" />
-          {waiting} need{waiting === 1 ? "s" : ""} you
-        </span>
-      )}
-      <span>Jump to now</span>
-      <kbd>N</kbd>
-    </button>
-  );
-}
-
-/**
- * Hover linking as a generated stylesheet: hovering a block or lane lights up
- * its hand-offs and the lanes on the other end and dims everything else,
- * without re-rendering a single block.
- */
-function LinkingStyle({
-  uid,
-  hover,
-  layout,
-  handoffs,
-}: {
-  uid: string;
-  hover: UiStore;
-  layout: RowLayout;
-  handoffs: readonly LaneHandoff[];
-}) {
-  const hoverRow = useUi(hover, selectHoverRow);
-  const hoverBlocks = useUi(hover, selectHoverBlocks);
-  const hoverItem = useUi(hover, selectHoverItem);
-  const hoverLine = hoverItem?.startsWith("h:") ? hoverItem.slice(2) : null;
-  const css = useMemo(
-    () => linkingCss(uid, hoverRow, hoverBlocks ? hoverBlocks.split(" ") : null, layout, handoffs, hoverLine),
-    [uid, hoverRow, hoverBlocks, layout, handoffs, hoverLine],
-  );
-  return <style>{css}</style>;
-}
-const selectHoverRow = (s: UiState) => s.hoverRow;
-const selectHoverBlocks = (s: UiState) => s.hoverBlocks;
-const selectHoverItem = (s: UiState) => s.hoverItem;
-
-export function linkingCss(
-  uid: string,
-  hoverRow: string | null,
-  hoverBlocks: readonly string[] | null,
-  layout: RowLayout,
-  handoffs: readonly LaneHandoff[],
-  hoverLine: string | null = null,
-): string {
-  const root = `[data-bl="${uid}"]`;
-  const rules: string[] = [];
-  if (hoverLine) rules.push(`${root} .bl-curve[data-h="${cssString(hoverLine)}"]{stroke-width:2px}`);
-  if (hoverRow) rules.push(`${root} .bl-band[data-row="${cssString(hoverRow)}"]{background:var(--bl-hover-band)}`);
-  // What is being hovered: an item's blocks, else the lane's (or group's) threads.
-  const blockIds = hoverBlocks ? new Set(hoverBlocks) : null;
-  let threadIds: Set<string> | null = null;
-  if (!blockIds && hoverRow) {
-    const row = layout.rows[rowIndexById(layout, hoverRow)];
-    if (row?.kind === "lane") threadIds = new Set([row.id]);
-    else if (row?.kind === "group") threadIds = new Set(row.threadIds);
-  }
-  if (!blockIds && !threadIds) return rules.join("");
-  const linkedHandoffs: string[] = [];
-  const linkedBlocks = new Set<string>(blockIds ?? []);
-  const linkedThreads = new Set<string>();
-  for (const h of handoffs) {
-    const touches = blockIds
-      ? blockIds.has(h.toBlockId) || (h.fromBlockId !== null && blockIds.has(h.fromBlockId))
-      : threadIds!.has(h.fromThreadId) || threadIds!.has(h.toThreadId);
-    if (!touches) continue;
-    linkedHandoffs.push(h.id);
-    linkedBlocks.add(h.toBlockId);
-    if (h.fromBlockId) linkedBlocks.add(h.fromBlockId);
-    linkedThreads.add(h.fromThreadId);
-    linkedThreads.add(h.toThreadId);
-  }
-  // Nothing to link: leave the rest of the timeline alone rather than flicker.
-  if (linkedHandoffs.length === 0) return rules.join("");
-  const keep = [...linkedBlocks].flatMap((id) => [`[data-block="${cssString(id)}"]`, `[data-members~="${cssString(id)}"]`]);
-  if (threadIds) for (const t of threadIds) keep.push(`[data-thread="${cssString(t)}"] *`);
-  rules.push(`${root} .bl-item{opacity:var(--bl-dim)}`);
-  rules.push(`${root} .bl-item:is(${keep.join(",")}){opacity:1}`);
-  rules.push(`${root} :is(.bl-curve,.bl-caps){opacity:.25}`);
-  const hs = linkedHandoffs.map((id) => `[data-h="${cssString(id)}"]`).join(",");
-  rules.push(`${root} :is(.bl-curve,.bl-caps):is(${hs}){opacity:1}`);
-  const lanes = [...linkedThreads].map((t) => `[data-row="${cssString(t)}"]`).join(",");
-  rules.push(`${root} .bl-band:is(${lanes}){background:var(--bl-link-band)}`);
-  return rules.join("");
-}

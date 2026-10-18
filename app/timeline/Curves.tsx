@@ -4,9 +4,9 @@
 // kept crisp with vector-effect. Caps are HTML on top, so a dot stays round
 // and an arrow stays sharp however the SVG is stretched.
 import { memo } from "react";
-import type { HandoffLineStyle, HandoffLineStyles } from "../../shared/view";
+import { HANDOFF_LINES, type LineCap } from "../../shared/view";
 import type { Curve, RowLayout } from "./layout";
-import { handoffPath, lineColor } from "./layout";
+import { handoffPath } from "./layout";
 import { layerPercent } from "./time";
 
 const MIN_PULL_PX = 24;
@@ -19,16 +19,15 @@ export interface CurvesProps {
   span: number;
   width: number;
   uid: string;
-  styles: HandoffLineStyles;
 }
 
-export const Curves = memo(function Curves({ curves, layout, anchor, span, width, uid, styles }: CurvesProps) {
+export const Curves = memo(function Curves({ curves, layout, anchor, span, width, uid }: CurvesProps) {
   const unitsPerPx = 1000 / Math.max(1, width);
   const x = (t: number) => layerPercent(t, anchor, span) * 10;
   const yOf = (row: number) => layout.tops[row]! + layout.heights[row]! / 2;
   const paths = curves.map((curve) => {
-    const style = styles[curve.handoff.kind];
-    const color = lineColor(style.color, curve.targetStatus);
+    const style = HANDOFF_LINES[curve.handoff.kind];
+    const color = style.color;
     if (curve.from.row !== null && curve.to.row !== null) {
       const d = handoffPath(x(curve.from.t), yOf(curve.from.row), x(curve.to.t), yOf(curve.to.row), unitsPerPx, MIN_PULL_PX);
       return { curve, style, color, d, stub: null };
@@ -92,22 +91,15 @@ export const Curves = memo(function Curves({ curves, layout, anchor, span, width
   );
 });
 
-/** The caps at either end of each line: a pin on the sender, an arrow into the target. */
-export const CurveCaps = memo(function CurveCaps({
-  curves,
-  layout,
-  anchor,
-  span,
-  styles,
-}: Omit<CurvesProps, "width" | "uid">) {
+/** The caps at either end of each line, from HANDOFF_LINES: a dot, a ring, or an arrow into the target. */
+export const CurveCaps = memo(function CurveCaps({ curves, layout, anchor, span }: Omit<CurvesProps, "width" | "uid">) {
   const yOf = (row: number) => layout.tops[row]! + layout.heights[row]! / 2;
   return (
     <>
       {curves.map((curve) => {
-        const style = styles[curve.handoff.kind];
-        const color = lineColor(style.color, curve.targetStatus);
+        const style = HANDOFF_LINES[curve.handoff.kind];
         return (
-          <span key={curve.handoff.id} className="bl-caps" data-h={curve.handoff.id} data-color={color}>
+          <span key={curve.handoff.id} className="bl-caps" data-h={curve.handoff.id} data-color={style.color}>
             {curve.from.row !== null && (
               <Cap kind={style.start} at="start" left={layerPercent(curve.from.t, anchor, span)} top={yOf(curve.from.row)} />
             )}
@@ -121,7 +113,7 @@ export const CurveCaps = memo(function CurveCaps({
   );
 });
 
-function Cap({ kind, at, left, top }: { kind: HandoffLineStyle["start"]; at: "start" | "end"; left: number; top: number }) {
+function Cap({ kind, at, left, top }: { kind: LineCap; at: "start" | "end"; left: number; top: number }) {
   if (kind === "none") return null;
   return (
     <span className="bl-cap" data-cap={kind} data-at={at} style={{ left: `${left}%`, top }}>
