@@ -66,6 +66,8 @@ const MOMENTUM_TAU = 325;
 const TWEEN_MS = 280;
 /** A zip to a lane's previous or next turn travels further, so it takes a little longer. */
 const ZIP_MS = 420;
+/** How far the shell's clock may trail ours: it ticks at most every 5s. */
+const SHELL_CLOCK_LAG_MS = 5_000;
 /** Wheel and pinch gestures count as moving until this long after their last event. */
 const GESTURE_IDLE_MS = 150;
 const COMMIT_THROTTLE_MS = 180;
@@ -203,17 +205,21 @@ export class ViewController {
   /** The shell changed the viewport (span buttons, the Live toggle). */
   adopt(viewport: Viewport): void {
     const last = this.lastCommitted;
+    // The shell clamps a committed end to its own clock, which ticks less
+    // often than ours: an end that differs by less than that lag is our own
+    // commit coming back, and must not restart a glide that is under way.
+    const sameEnd = (a: number, b: number) => Math.abs(a - b) <= Math.max(SHELL_CLOCK_LAG_MS, 2 * this.msPerPx());
     if (
       last &&
       last.live === viewport.live &&
       last.span === viewport.span &&
-      (viewport.live || last.end === viewport.end)
+      (viewport.live || sameEnd(last.end, viewport.end))
     ) {
       return;
     }
     this.lastCommitted = { ...viewport };
     const span = clampSpan(viewport.span);
-    if (viewport.live === this.view.live && span === this.view.span && (viewport.live || viewport.end === this.view.end)) {
+    if (viewport.live === this.view.live && span === this.view.span && (viewport.live || sameEnd(viewport.end, this.view.end))) {
       return;
     }
     this.animateTo(viewport.live ? "now" : viewport.end, span, viewport.live);
