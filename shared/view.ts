@@ -81,6 +81,8 @@ export interface TimelineProps {
 
   /** Thread id to emphasise (e.g. the thread open in another pane). */
   highlightedThreadId?: string | null;
+  /** How hand-off lines are drawn, per kind. Defaults to `DEFAULT_LINE_STYLES`. */
+  lineStyles?: HandoffLineStyles;
   className?: string;
 
   /**
@@ -93,3 +95,30 @@ export interface TimelineProps {
   /** Replaces the built-in empty state shown when `rows` is empty. */
   emptyState?: ReactNode;
 }
+
+// Hand-off lines join two lanes at the moment one thread started or messaged
+// another: they leave the sender's lane at `handoff.at` (inside the reply that
+// did it, not at the end of the block) and land on the start of the target
+// block. Each kind has its own drawing style, which the user can change.
+
+export type LineStroke = "solid" | "dashed" | "dotted";
+/** What sits on a line's end. "dot" is a small filled circle, "circle" an open ring. */
+export type LineCap = "none" | "dot" | "circle" | "arrow";
+/** "auto" colours a line by its target block's state: running blue, waiting amber, failed red, otherwise neutral. */
+export type LineColor = "auto" | "neutral" | "blue" | "red" | "amber" | "green" | "violet";
+
+export interface HandoffLineStyle {
+  stroke: LineStroke;
+  /** Cap at the sender's end (the moment in the reply). */
+  start: LineCap;
+  /** Cap at the target block's start. */
+  end: LineCap;
+  color: LineColor;
+}
+
+export type HandoffLineStyles = Record<import("./model").HandoffKind, HandoffLineStyle>;
+
+export const DEFAULT_LINE_STYLES: HandoffLineStyles = {
+  spawn: { stroke: "solid", start: "dot", end: "arrow", color: "auto" },
+  tell: { stroke: "dashed", start: "dot", end: "arrow", color: "auto" },
+};
