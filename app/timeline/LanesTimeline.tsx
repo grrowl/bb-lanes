@@ -6,7 +6,7 @@
 // anchor time plus a culling range) in percent of the track; the controller
 // slides and pans by writing transforms. Rows are virtualised; only blocks in
 // the frame's range are drawn, and dense history collapses into clusters.
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { LaneBlock } from "../../shared/model";
 import type { GroupRow, LaneRow, TimelineProps } from "../../shared/view";
@@ -92,7 +92,9 @@ export function LanesTimeline(props: TimelineProps) {
   const controllerRef = useRef<ViewController | null>(null);
   if (controllerRef.current === null) {
     controllerRef.current = new ViewController(viewport, now, {
-      requestFrame: () => setFrame(controllerRef.current!.cutFrame()),
+      // A new frame re-lays every row out; render it without blocking, while
+      // the current one keeps sliding by transform within its margin.
+      requestFrame: () => startTransition(() => setFrame(controllerRef.current!.cutFrame())),
       commit: (next) => latest.current.onViewportChange(next),
     });
   }

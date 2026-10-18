@@ -640,13 +640,21 @@
   color: var(--bl-run-fg);
   box-shadow: inset -2px 0 0 var(--bl-run-edge);
 }
+/* Upstream's shimmer: a highlight half the block wide sweeping from -50% to
+ * 100% of it. Upstream moves the background; moving the highlight itself is
+ * the same sweep, but the compositor runs it, so a pane of shimmering lanes
+ * never repaints the hand-off lines beneath. */
 .bl-block[data-status="running"]::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%) 0 0 / 50% 100% no-repeat;
-  animation: bl-shimmer 2200ms ease-in-out infinite;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  background: linear-gradient(90deg, transparent 0%, var(--bl-shimmer) 50%, transparent 100%);
+  animation: bl-sweep 2200ms ease-in-out infinite;
   pointer-events: none;
+  will-change: transform;
 }
 .bl-block[data-status="waiting"] {
   background: var(--bl-warn-bg);
@@ -1350,6 +1358,14 @@
 @keyframes bl-pulse {
   50% {
     opacity: 0.55;
+  }
+}
+@keyframes bl-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
   }
 }
 @keyframes bl-shimmer {

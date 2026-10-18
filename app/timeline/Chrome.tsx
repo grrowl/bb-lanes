@@ -1,6 +1,6 @@
 // The pieces around the lanes: row bands, the names column's cells, the
 // hand-off chip, the scrub bar, and the jump-to-now pill.
-import { forwardRef, useCallback, useRef } from "react";
+import { forwardRef, memo, useCallback, useRef } from "react";
 import type { LaneHandoff } from "../../shared/model";
 import { HANDOFF_LINES, type Row, type TimelineProps } from "../../shared/view";
 import type { ViewController } from "./controller";
@@ -42,7 +42,8 @@ export function RowBands({
   );
 }
 
-export function HeaderCell({
+/** A names cell. Memoised: the engine re-renders on every clock tick, the cells only when their row does. */
+export const HeaderCell = memo(function HeaderCell({
   row,
   top,
   height,
@@ -81,7 +82,7 @@ export function HeaderCell({
       {render(row, { hovered, focused })}
     </div>
   );
-}
+});
 
 /**
  * Narrow panes show avatars only, so each lane names itself in a caption
