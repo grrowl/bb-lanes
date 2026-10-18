@@ -113,8 +113,12 @@ export function LanesTimeline(props: TimelineProps) {
     controller.syncNow(now);
   }, [controller, now]);
 
+  // When the user last moved through time. Rows that come and go because the
+  // window moved are not a re-flow the user asked for (see below).
+  const lastTimeMove = useRef(0);
   useLayoutEffect(() => {
     controller.adopt(viewport);
+    if (!viewport.live) lastTimeMove.current = performance.now();
   }, [controller, viewport.end, viewport.span, viewport.live]);
 
   // Open blocks end at the frame's clock time; re-cut it often enough that
@@ -285,17 +289,27 @@ export function LanesTimeline(props: TimelineProps) {
 
   // ----- Rows that are re-flowing (collapse, filter, density) animate -----
 
+  // Only a change in which rows exist or where they sit counts. The shell
+  // hands over a fresh rows array on every refresh and viewport change, and
+  // treating those as re-flows hid the hand-off lines while live and panning.
+  // Rows that change because the window moved snap into place instead, so the
+  // lines stay drawn through a pan; collapse, filter, and group changes animate.
+  const rowPlacement = useMemo(
+    () => layout.rows.map((row, i) => `${row.id}@${layout.tops[i]}`).join("|"),
+    [layout],
+  );
   const [reflowing, setReflowing] = useState(false);
-  const firstLayout = useRef(true);
+  const firstPlacement = useRef(true);
   useLayoutEffect(() => {
-    if (firstLayout.current) {
-      firstLayout.current = false;
+    if (firstPlacement.current) {
+      firstPlacement.current = false;
       return;
     }
+    if (performance.now() - lastTimeMove.current < 600) return;
     setReflowing(true);
     const timer = window.setTimeout(() => setReflowing(false), 320);
     return () => window.clearTimeout(timer);
-  }, [layout]);
+  }, [rowPlacement]);
 
   // ----- Navigation model -----
 
