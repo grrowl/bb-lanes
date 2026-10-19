@@ -35,6 +35,7 @@ import { useSurface, type SurfaceKind } from "./surface-store";
 import { SECOND, SPAN_PRESETS } from "./time";
 import "./shell.css";
 import { revealTurn } from "./data/revealTurn";
+import { usePaneShortcuts } from "../../lib/use-pane-shortcuts";
 
 /** Below this pane width the toolbar condenses into one menu. */
 const CONDENSED_WIDTH = 640;
@@ -69,64 +70,6 @@ function useElementWidth(ref: RefObject<HTMLElement | null>): number {
     return () => observer.disconnect();
   }, [ref]);
   return width;
-}
-
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || target.closest("input, textarea, select, [contenteditable='true']") !== null;
-}
-
-/**
- * Pane-level keys: 1–5 pick a span, `g` opens Group by, `/` searches. They
- * stay quiet while typing and while focus is in another pane.
- */
-function useLanesShortcuts(
-  rootRef: RefObject<HTMLElement | null>,
-  handlers: { span(ms: number): void; groupMenu(): void; search(): void },
-) {
-  const latest = useRef(handlers);
-  latest.current = handlers;
-  useEffect(() => {
-    // Opening the pane is itself a gesture towards it.
-    let pointerInside = true;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target instanceof Node ? event.target : null;
-      pointerInside =
-        target !== null &&
-        (rootRef.current?.contains(target) === true ||
-          (target instanceof Element && target.closest("[data-lanes-header]") !== null));
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
-      const root = rootRef.current;
-      if (root === null || document.visibilityState !== "visible" || root.getClientRects().length === 0) return;
-      if (isEditable(event.target)) return;
-      const active = document.activeElement;
-      const focusInside =
-        active !== null &&
-        (root.contains(active) || (active instanceof Element && active.closest("[data-lanes-header]") !== null));
-      const focusIdle = active === null || active === document.body;
-      if (!focusInside && !(focusIdle && pointerInside)) return;
-
-      const preset = SPAN_PRESETS.find((candidate) => candidate.key === event.key);
-      if (preset !== undefined) {
-        event.preventDefault();
-        latest.current.span(preset.ms);
-      } else if (event.key === "g") {
-        event.preventDefault();
-        latest.current.groupMenu();
-      } else if (event.key === "/") {
-        event.preventDefault();
-        latest.current.search();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [rootRef]);
 }
 
 function subtitleFor(
@@ -339,10 +282,13 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
     [actions],
   );
 
-  useLanesShortcuts(rootRef, {
-    span: actions.setSpan,
-    groupMenu: () => actions.setGroupMenuOpen(true),
-    search: () => searchRef.current?.focus(),
+  usePaneShortcuts(rootRef, (event) => {
+    const preset = SPAN_PRESETS.find((candidate) => candidate.key === event.key);
+    if (preset) actions.setSpan(preset.ms);
+    else if (event.key.toLowerCase() === "g") actions.setGroupMenuOpen(true);
+    else if (event.key === "/") searchRef.current?.focus();
+    else return false;
+    return true;
   });
 
   // Beside a thread there is no title bar to carry the summary: the bar leads with the team's own.
@@ -351,7 +297,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
   const loading = data.sidebar.status === "loading" || (data.status === "loading" && threads.length === 0);
 
   return (
-    <div ref={rootRef} className="bl-theme lanes-chrome lanes-tray">
+    <div ref={rootRef} className="bl-theme lanes-chrome lanes-tray" data-lanes-shortcuts={surface}>
       <Toolbar
         state={state}
         actions={actions}

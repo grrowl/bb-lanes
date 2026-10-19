@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { PluginNavPanelProps, PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { LANES_CHANGED, type LanesSnapshot } from "../../shared/model";
 import type { rpcContract } from "../../shared/rpc";
 import { installLayoutShims } from "../../test/layout";
@@ -65,6 +65,64 @@ describe("Lanes app registration", () => {
 });
 
 describe("Lanes nav panel", () => {
+  it("keeps viewport shortcuts working after closing help, without stealing typing or another pane's keys", async () => {
+    const rects = vi.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}] as unknown as DOMRectList);
+    const matchMedia = window.matchMedia;
+    const motion = vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      ...matchMedia(query), matches: query === "(prefers-reduced-motion: reduce)",
+    }));
+    const app = await loadApp();
+    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
+      pluginId: "lanes-test-shortcuts", sidebarThreads, rpc: rpc(),
+    });
+    try {
+      await slot.findByText("Spec the pane");
+      const help = screen.getByRole("button", { name: "Keyboard shortcuts" });
+      fireEvent.click(help);
+      const dialog = await screen.findByRole("dialog", { name: "Keyboard shortcuts" });
+      expect(within(dialog).queryAllByRole("menuitem")).toHaveLength(0);
+      fireEvent.keyDown(dialog, { key: "Escape" });
+      await waitFor(() => expect(document.activeElement).toBe(help));
+      fireEvent.keyDown(help, { key: "2" });
+      expect(screen.getByRole("button", { name: "Window: Last 1h" })).toBeTruthy();
+      await waitFor(() => expect(screen.getByRole("region", { name: "Agent lanes" }).hasAttribute("data-moving")).toBe(false));
+      fireEvent.keyDown(help, { key: "=" });
+      await screen.findByRole("button", { name: "Window: Last 30m" });
+      fireEvent.keyDown(help, { key: "-" });
+      await screen.findByRole("button", { name: "Window: Last 1h" });
+      fireEvent.keyDown(help, { key: "[" });
+      await screen.findByRole("button", { name: /Window: .*not following the clock/ });
+      fireEvent.keyDown(help, { key: "n" });
+      await screen.findByRole("button", { name: "Window: Last 1h" });
+
+      fireEvent.keyDown(help, { key: "/" });
+      const search = screen.getByRole("searchbox");
+      expect(document.activeElement).toBe(search);
+      for (const key of ["1", "[", "-", "n", "g"]) fireEvent.keyDown(search, { key });
+      expect(screen.getByRole("button", { name: "Window: Last 1h" })).toBeTruthy();
+      expect(screen.queryByRole("menu")).toBeNull();
+
+      const outside = document.createElement("button");
+      document.body.append(outside);
+      outside.focus();
+      for (const key of ["1", "[", "-", "n", "/", "g"]) fireEvent.keyDown(outside, { key });
+      expect(screen.getByRole("button", { name: "Window: Last 1h" })).toBeTruthy();
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+
+      act(() => help.focus());
+      fireEvent.keyDown(help, { key: "1", ctrlKey: true });
+      fireEvent.keyDown(help, { key: "1", isComposing: true });
+      expect(screen.getByRole("button", { name: "Window: Last 1h" })).toBeTruthy();
+      fireEvent.keyDown(help, { key: "G" });
+      await screen.findByRole("menu");
+    } finally {
+      slot.lifecycle.unmount();
+      rects.mockRestore();
+      motion.mockRestore();
+    }
+  });
+
   it("renders grouped lanes from sidebar threads and the lanes_window snapshot", async () => {
     const app = await loadApp();
     const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {

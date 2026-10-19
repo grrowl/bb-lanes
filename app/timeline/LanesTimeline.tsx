@@ -52,6 +52,7 @@ import { withReportTitles } from "./labels";
 import { LinkingStyle, cssString } from "./linking";
 import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
+import { usePaneShortcuts } from "../../lib/use-pane-shortcuts";
 
 const OVERSCAN_ROWS = 6;
 /** Below this track width a jumper and its label would crowd the blocks they point past. */
@@ -817,7 +818,23 @@ export function LanesTimeline(props: TimelineProps) {
 
   // ----- Keyboard -----
 
+  usePaneShortcuts(rootRef, (event) => {
+    switch (event.key) {
+      case "[": controller.glideBy(-1 / 3); break;
+      case "]": controller.glideBy(1 / 3); break;
+      case "n":
+      case "N": controller.jumpToNow(); break;
+      case "=":
+      case "+": controller.zoomBy(0.5, 1); break;
+      case "-":
+      case "_": controller.zoomBy(2, 1); break;
+      default: return false;
+    }
+    return true;
+  });
+
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return;
     const target = event.target as HTMLElement;
     const inPopover = target.closest(".bl-pop");
     const openId = selection.get().openBlockId;
@@ -877,30 +894,6 @@ export function LanesTimeline(props: TimelineProps) {
         return;
       }
     }
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    switch (event.key) {
-      case "[":
-        controller.glideBy(-1 / 3);
-        break;
-      case "]":
-        controller.glideBy(1 / 3);
-        break;
-      case "n":
-      case "N":
-        controller.jumpToNow();
-        break;
-      case "=":
-      case "+":
-        controller.zoomBy(0.5, 1);
-        break;
-      case "-":
-      case "_":
-        controller.zoomBy(2, 1);
-        break;
-      default:
-        return;
-    }
-    event.preventDefault();
   };
 
   const onFocusCapture = () => selection.set({ focusWithin: true });

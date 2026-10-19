@@ -4,6 +4,7 @@
 // as upstream's does, and opens the spans. On a narrow pane the controls
 // condense to search and one View menu.
 import type { ReactNode, RefObject } from "react";
+import * as Popover from "@radix-ui/react-popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -280,22 +281,25 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, summary, 
       <span className="lanes-bar-end">
         <StatusNote status={status} />
         <WindowMenu state={state} actions={actions} />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Popover.Root>
+          <Popover.Trigger asChild>
             <button type="button" className="lanes-quiet" data-icon-only="" aria-label="Keyboard shortcuts">
               <MoreGlyph />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={MENU}>
-            <MenuLabel>Keyboard</MenuLabel>
-            {KEYS.map(([what, keys]) => (
-              <DropdownMenuItem key={what} disabled>
-                {what}
-                <span className="lanes-menu-key">{keys}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content align="end" sideOffset={4} className={`${MENU} lanes-shortcuts`} aria-label="Keyboard shortcuts" tabIndex={-1}>
+              <MenuLabel>Keyboard shortcuts</MenuLabel>
+              <p>With focus in Lanes. Esc closes this help.</p>
+              <dl>
+                {KEYS.map(([what, keys]) => (
+                  <div key={what}><dt>{what}</dt><dd><kbd>{keys}</kbd></dd></div>
+                ))}
+              </dl>
+              <p>Focus a turn to move with the arrow keys.</p>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       </span>
     </div>
   );

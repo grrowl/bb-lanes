@@ -800,6 +800,35 @@ a.lanes-name:hover {
   color: var(--bl-faint);
   font-variant-numeric: tabular-nums;
 }
+.lanes-shortcuts {
+  z-index: 50;
+  max-width: calc(100vw - 24px);
+}
+.lanes-shortcuts p {
+  margin: 4px 8px 6px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--bl-muted);
+}
+.lanes-shortcuts dl {
+  margin: 0;
+}
+.lanes-shortcuts dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 28px;
+  padding: 5px 8px;
+}
+.lanes-shortcuts dd {
+  margin: 0;
+  color: var(--bl-muted);
+}
+.lanes-shortcuts kbd {
+  font-family: inherit;
+  font-size: 11px;
+}
 .lanes-menu-check {
   margin-left: auto;
   color: var(--bl-strong);
