@@ -5,6 +5,16 @@ component, what we checked, and where we chose to differ.
 
 ## How to check
 
+The upstream component is a paid affectUI component, so its source is not in
+this repository. Maintainers with a licence keep a local copy at
+`reference/affectui-agent-lanes/`, which git ignores. The parity and
+interaction scripts need that copy. The rest run without it.
+
+Screenshots of the live bb show real thread data, so the scripts that take
+them write into `docs/fidelity/live/`, which git also ignores. Only
+screenshots of the harness, which draws made-up threads, and of the parity
+page are committed.
+
 Run both pages, then run the QA scripts. The scripts drive the installed
 Chrome through `playwright-core`, which is not a dependency of the plugin, so
 point `PLAYWRIGHT_DIR` at any folder where it is installed.
@@ -16,8 +26,8 @@ export PLAYWRIGHT_DIR=/tmp/lanes-qa-tools                               # npm i 
 node scripts/qa/measure.mjs light        # element by element style and box diff
 node scripts/qa/parity.mjs docs/fidelity # side by side screenshots
 node scripts/qa/interactions.mjs /tmp/lanes-interactions   # the checklist below, with frame sheets
-node scripts/qa/tour.mjs docs/fidelity/bb    # the live bb, needs the plugin installed
-node scripts/qa/mobile.mjs docs/fidelity/mobile
+node scripts/qa/tour.mjs                  # the live bb, needs the plugin installed
+node scripts/qa/mobile.mjs
 ```
 
 The harness draws upstream's demo with `?parity`. It uses upstream's four
@@ -220,22 +230,12 @@ motion.
 
 ## Real bb
 
-`scripts/qa/tour.mjs` takes these screenshots of the live bb at 1440 by 900,
-with real data. They are in `docs/fidelity/bb/`. The tour switches to the
-last hour after its first screenshot, because a quiet 15 minutes shows
-little, and its other steps run on that hour.
-
-| View | Light | Dark |
-|---|---|---|
-| The pane, last 15m | [light](fidelity/bb/pane-light.png) | [dark](fidelity/bb/pane-dark.png) |
-| The pane, last hour | [light](fidelity/bb/pane-1h-light.png) | [dark](fidelity/bb/pane-1h-dark.png) |
-| Tooltip | [light](fidelity/bb/tooltip-light.png) | [dark](fidelity/bb/tooltip-dark.png) |
-| Line hover | [light](fidelity/bb/line-hover-light.png) | |
-| Panned back | [light](fidelity/bb/panned-light.png) | |
-| Zoomed out | | [dark](fidelity/bb/zoomed-dark.png) |
-| Group menu | [light](fidelity/bb/group-menu-light.png) | |
-| Window menu | | [dark](fidelity/bb/window-menu-dark.png) |
-| Team panel | [light](fidelity/bb/team-panel-light.png) | [dark](fidelity/bb/team-panel-dark.png) |
+`scripts/qa/tour.mjs` takes screenshots of the live bb at 1440 by 900, with
+real data, into `docs/fidelity/live/bb/`. They are not committed because they
+show real threads. The tour covers the pane at 15 minutes and at an hour, the
+tooltip, line hover, a pan, a zoom, the group and window menus, and the team
+panel, in light and dark. It switches to the last hour after its first
+screenshot, because a quiet 15 minutes shows little.
 
 No thread was waiting on a person during the tour, so the decision card was
 checked in the parity page only. bb draws the sidebar accessory in a slot
@@ -285,17 +285,13 @@ also records a zip with Chrome's screencast and samples every animation
 frame. In every run the ruler had the same transform as the lanes on every
 frame, and the glide moved on 24 to 27 frames with none over 20ms.
 
-| View | Light | Dark |
-|---|---|---|
-| At rest | [desktop](fidelity/jumps/rest-desktop-light.png), [390px](fidelity/jumps/rest-390-light.png) | [desktop](fidelity/jumps/rest-desktop-dark.png), [390px](fidelity/jumps/rest-390-dark.png) |
-| Hovered | [desktop](fidelity/jumps/hover-desktop-light.png) | [desktop](fidelity/jumps/hover-desktop-dark.png) |
-| Landed | [desktop](fidelity/jumps/landing-desktop-light.png), [390px](fidelity/jumps/landing-390-light.png) | [desktop](fidelity/jumps/landing-desktop-dark.png), [390px](fidelity/jumps/landing-390-dark.png) |
-| A zip, frame by frame | [bb](fidelity/jumps/zip-frames-desktop-light.png), [harness, a turn not yet loaded](fidelity/jumps/harness-zip-frames-light.png) | [bb](fidelity/jumps/zip-frames-desktop-dark.png) |
+The live screenshots go to `docs/fidelity/live/jumps/`. The committed frame
+sheet is from the harness: [a zip to a turn not yet loaded](fidelity/jumps/harness-zip-frames-light.png).
 
 ## Narrow panes and touch
 
 These checks run against the live bb at 390 by 844 with touch emulation, in
-`scripts/qa/mobile.mjs`. The screenshots are in `docs/fidelity/mobile/`.
+`scripts/qa/mobile.mjs`. The screenshots go to `docs/fidelity/live/mobile/`.
 
 | Check | Result |
 |---|---|

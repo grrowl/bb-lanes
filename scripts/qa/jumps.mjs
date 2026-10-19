@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { BB, HARNESS, launch, sideBySide } from "./browser.mjs";
 
 const target = process.argv[2] === "bb" ? "bb" : "harness";
-const out = process.argv[3] ?? `docs/fidelity/jumps/${target}`;
+const out = process.argv[3] ?? target === "bb" ? "docs/fidelity/live/jumps" : "docs/fidelity/jumps/harness";
 mkdirSync(out, { recursive: true });
 
 // The harness draws its own theme from `theme`; bb follows the colour scheme.

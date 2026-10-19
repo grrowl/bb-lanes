@@ -62,5 +62,18 @@
   },
   "allowScripts": {
     "better-sqlite3@12.11.1": true
-  }
+  },
+  "license": "MIT",
+  "author": "Tom McKenzie",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grrowl/bb-lanes.git"
+  },
+  "homepage": "https://github.com/grrowl/bb-lanes#readme",
+  "keywords": [
+    "bb-plugin",
+    "bb",
+    "agents",
+    "timeline"
+  ]
 }

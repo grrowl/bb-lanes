@@ -26,6 +26,9 @@ body {
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
+.hx-bar[hidden] {
+  display: none;
+}
 .hx-bar {
   display: flex;
   flex-wrap: wrap;

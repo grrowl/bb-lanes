@@ -17,9 +17,11 @@ as a lane on a live timeline, so you can see at a glance:
 It should just work the first time someone opens it. There is no setup step
 and nothing to configure before it is useful.
 
-The look and feel come from the affectUI Agent Lanes component. Its source is
-in `reference/affectui-agent-lanes/`, and you can run it next to ours (see
-`reference/affectui-agent-lanes/live/README.md`). Where upstream has an answer,
+The look and feel come from the affectUI Agent Lanes component
+(https://www.affectui.com/components/agent-lanes). It is a paid component, so
+its source is not in this repository. Maintainers with a licence keep a local
+copy in `reference/affectui-agent-lanes/`, which git ignores, and can run it
+next to ours (see `docs/fidelity.md`). Where upstream has an answer,
 we copy it exactly. Where upstream has no answer, we extend it in the same
 style, so the new parts look like they were made by the same hand.
 
@@ -103,6 +105,11 @@ record the change here.
   that you are done.
 - Check your work in real bb with real data before you call it done. The QA
   scripts in `scripts/qa/` take screenshots of the live pane.
+- This repository is public. Never commit a screenshot or fixture that shows
+  real threads, projects, or messages. Live screenshots go to
+  `docs/fidelity/live/`, which git ignores. Use the harness for anything
+  committed. Never commit third-party source, including the upstream
+  component.
 
 ### Robustness
 

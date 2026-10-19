@@ -4,7 +4,7 @@
 //   ?theme=dark&span=1h&density=compact&scenario=stress&elapsed=6&speed=0
 //   &width=480&collapse=project:infra&empty=1&highlight=thr_engine
 // `?parity` draws upstream's demo at upstream's 760px card and frozen clock,
-// for side-by-side checks against reference/affectui-agent-lanes/live;
+// for side-by-side checks against a local copy of upstream (see docs/fidelity.md);
 // `?parity=live` runs the demo's accelerated script.
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";

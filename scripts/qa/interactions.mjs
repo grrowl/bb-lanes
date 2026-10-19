@@ -7,7 +7,7 @@
 // Pages never connect Vite's HMR socket, so edits elsewhere in the worktree
 // cannot reload a page mid-check.
 // Needs both dev servers running:
-//   npx vite --config reference/affectui-agent-lanes/live/vite.config.mjs
+//   npx vite --config reference/affectui-agent-lanes/live/vite.config.mjs  (a local, unpublished copy of upstream; see docs/fidelity.md)
 //   npx vite --config app/timeline/harness/vite.config.ts
 //   PLAYWRIGHT_DIR=/tmp/lanes-qa-tools node scripts/qa/interactions.mjs [outDir]
 import { execSync } from "node:child_process";

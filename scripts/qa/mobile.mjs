@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { BB, launch } from "./browser.mjs";
 
-const out = process.argv[2] ?? "docs/fidelity/mobile";
+const out = process.argv[2] ?? "docs/fidelity/live/mobile";
 mkdirSync(out, { recursive: true });
 
 async function phone(browser, scheme) {

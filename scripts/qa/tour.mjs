@@ -9,7 +9,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { BB, launch } from "./browser.mjs";
 
-const out = process.argv[2] ?? "docs/fidelity/bb";
+const out = process.argv[2] ?? "docs/fidelity/live/bb";
 mkdirSync(out, { recursive: true });
 
 async function pane(browser, scheme) {

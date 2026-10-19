@@ -16,10 +16,10 @@ feel considered.
 
 ## Reference
 
-`reference/affectui-agent-lanes/agent-lanes.component.js` is the complete,
-de-minified reference component (React + its full stylesheet as the string
-`p`, ~200 lines of CSS). Read it end to end before designing anything. It is
-the taste baseline. Borrow freely: structure, variable names, motion, copy
+The reference is affectUI's paid Agent Lanes component
+(https://www.affectui.com/components/agent-lanes). Its source is not in this
+repository; maintainers with a licence keep a local copy in
+`reference/affectui-agent-lanes/` (git-ignored). It is the taste baseline. Borrow freely: structure, variable names, motion, copy
 ("Needs you", "Idle", "now", "Last 30m"), the tray-and-card shell, the dark
 tooltip, the decision popover, the state tag that collapses with
 `grid-template-columns: 0fr → 1fr`, the left-edge mask fade, the shimmer, the
@@ -48,8 +48,7 @@ Key reference mechanics worth copying exactly:
 - `aria-live="polite"` announcement of "N need you" / "N running".
 - `prefers-reduced-motion`: everything still, only updates.
 
-`docs.js` holds the reference's documentation (props, keyboard, a11y, motion,
-responsive rules). `reference/sample-thread-events.json` holds redacted real
+`reference/sample-thread-events.json` holds redacted real
 bb thread events showing the shapes the server indexes.
 
 ## bb surfaces

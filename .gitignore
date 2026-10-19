@@ -1,3 +1,7 @@
 dist/
 node_modules/
 .DS_Store
+# The upstream affectUI component is paid; keep any local copy out of git.
+reference/affectui-agent-lanes/
+# Screenshots of a live bb show real threads.
+docs/fidelity/live/
