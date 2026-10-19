@@ -89,6 +89,48 @@ describe("LanesTimeline", () => {
     expect(document.activeElement).toBe(merge);
   });
 
+  it("retries failed detail loads and exposes the fetched prompt and recent tools", async () => {
+    const loadDetail = vi.fn(async (turn: LaneBlock) => ({
+      ...fixtureDetail(turn), prompt: "Check the actual timeline and summarize the result", recent: [{ kind: "command" as const, label: "npm test" }],
+    })).mockRejectedValueOnce(new Error("Disconnected"));
+    setup({ loadDetail });
+    const merge = block(/Merge the backend and brief the shell/);
+    fireEvent.click(merge);
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    fireEvent.click(retry);
+    expect(document.activeElement).toBe(merge);
+    await screen.findByText("Ran the full test suite: 132 passed");
+    expect(loadDetail).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Turn details")).toBeTruthy();
+    expect(screen.getByText("Check the actual timeline and summarize the result")).toBeTruthy();
+    expect(screen.getByText("npm test")).toBeTruthy();
+    fireEvent.keyDown(merge, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(merge);
+  });
+
+  it("ignores an older request's error after the tooltip has reopened and loaded successfully", async () => {
+    let rejectFirst!: (error: Error) => void;
+    const loadDetail = vi.fn(async (turn: LaneBlock) => fixtureDetail(turn))
+      .mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject; }));
+    setup({ loadDetail });
+    const merge = block(/Merge the backend and brief the shell/);
+    fireEvent.click(merge);
+    fireEvent.pointerDown(document.body);
+    fireEvent.click(merge);
+    await screen.findByText("Ran the full test suite: 132 passed");
+    await act(async () => rejectFirst(new Error("Old request failed")));
+    expect(screen.getByText("Ran the full test suite: 132 passed")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
+
+  it("cleans Markdown emphasis and link syntax from summary text while preserving code", async () => {
+    setup({ loadDetail: async (turn) => ({ ...fixtureDetail(turn), summary: ["**Checked** [the build](https://example.com/build) with `**options`."] }) });
+    fireEvent.click(block(/Merge the backend and brief the shell/));
+    await waitFor(() => expect(document.querySelector(".bl-tip-list")?.textContent).toBe("Checked the build with **options."));
+    expect(document.querySelector(".bl-tip-code")?.textContent).toBe("**options");
+  });
+
   it("closes when the pointer goes down elsewhere", () => {
     setup();
     fireEvent.click(block(/Merge the backend and brief the shell/));

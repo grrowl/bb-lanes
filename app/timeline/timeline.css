@@ -537,8 +537,11 @@
 .bl-strip {
   pointer-events: auto;
 }
-.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name) {
+.bl[data-reflow] :is(.bl-lane, .bl-grouptrack, .bl-band, .bl-name, .bl-caption) {
   transition: transform 320ms ease;
+}
+.bl[data-reflow] .bl-jumper {
+  transition: top 320ms ease, opacity 160ms ease, translate 160ms ease, visibility 0s linear 160ms;
 }
 .bl[data-reflow] :is(.bl-curves, .bl-caps) {
   opacity: 0;
@@ -995,6 +998,39 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0 8px;
+}
+.bl-tip-detail {
+  font-size: 11.5px;
+}
+.bl-tip-detail summary {
+  width: fit-content;
+  border-radius: 3px;
+  color: var(--bl-tip-muted);
+  cursor: pointer;
+}
+.bl-tip-detail summary:hover,
+.bl-tip-detail summary:active {
+  color: var(--bl-tip-strong);
+}
+.bl-tip-detail summary:focus-visible {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: 2px;
+}
+.bl-tip-detail > div {
+  display: grid;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bl-tip-detail-label {
+  color: var(--bl-tip-muted);
+}
+.bl-tip-detail ul {
+  display: grid;
+  gap: 4px;
 }
 .bl-tip-actions {
   display: flex;

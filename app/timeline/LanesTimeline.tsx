@@ -491,20 +491,24 @@ export function LanesTimeline(props: TimelineProps) {
 
   const detailCache = useRef(new Map<string, DetailState>());
   const [, setDetailVersion] = useState(0);
+  const [detailRetry, setDetailRetry] = useState(0);
   const detailKey = (block: LaneBlock) => `${block.id}|${block.status}|${block.end ?? ""}`;
   const detailFor = (block: LaneBlock): DetailState => detailCache.current.get(detailKey(block)) ?? { status: "loading" };
   useEffect(() => {
     if (!openBlock || openBlock.status === "waiting") return;
     const key = detailKey(openBlock);
     if (detailCache.current.has(key)) return;
-    detailCache.current.set(key, { status: "loading" });
+    const pending: DetailState = { status: "loading" };
+    detailCache.current.set(key, pending);
     let cancelled = false;
     latest.current.loadDetail(openBlock).then(
       (detail) => {
+        if (detailCache.current.get(key) !== pending) return;
         detailCache.current.set(key, { status: "ready", detail });
         if (!cancelled) setDetailVersion((v) => v + 1);
       },
       () => {
+        if (detailCache.current.get(key) !== pending) return;
         detailCache.current.set(key, { status: "error" });
         if (!cancelled) setDetailVersion((v) => v + 1);
       },
@@ -512,9 +516,9 @@ export function LanesTimeline(props: TimelineProps) {
     return () => {
       cancelled = true;
       // An interrupted load may be retried the next time the tooltip opens.
-      if (detailCache.current.get(key)?.status === "loading") detailCache.current.delete(key);
+      if (detailCache.current.get(key) === pending) detailCache.current.delete(key);
     };
-  }, [openBlock]);
+  }, [openBlock, detailRetry]);
 
   const openPopover = useCallback(
     (blockId: string | null) => {
@@ -1136,6 +1140,11 @@ export function LanesTimeline(props: TimelineProps) {
                     controller={controller}
                     now={activeFrame.now}
                     detail={detailFor(openBlock)}
+                    onRetry={() => {
+                      detailCache.current.delete(detailKey(openBlock));
+                      setDetailRetry((attempt) => attempt + 1);
+                      focusBlockElement(openBlock.id);
+                    }}
                     describe={describe}
                     onOpen={(split) => openThread(openBlock, split)}
                   />

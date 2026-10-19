@@ -69,10 +69,11 @@ export interface TooltipProps extends PlacementProps {
   detail: DetailState;
   describe: Describe;
   onOpen(split: boolean): void;
+  onRetry(): void;
 }
 
 export function BlockTooltip(props: TooltipProps) {
-  const { id, block, now, detail, describe, onOpen, up } = props;
+  const { id, block, now, detail, describe, onOpen, onRetry, up } = props;
   const ref = useRef<HTMLDivElement>(null);
   usePopoverPlacement(ref, props, "center");
   const lane = describe(block.threadId).title;
@@ -114,7 +115,7 @@ export function BlockTooltip(props: TooltipProps) {
       ) : (
         <span className="bl-tip-title">{title}</span>
       )}
-      {detail.status === "error" && <span className="bl-tip-empty">Couldn’t load what happened.</span>}
+      {detail.status === "error" && <span className="bl-tip-empty">Couldn’t load what happened. <button type="button" className="bl-tip-open" onClick={onRetry}>Retry</button></span>}
       {detail.status === "ready" && summary.length === 0 && block.end === null && (
         <span className="bl-tip-empty">No detail yet.</span>
       )}
@@ -124,6 +125,15 @@ export function BlockTooltip(props: TooltipProps) {
             <span key={c.key}>{plural(block.counts[c.key], c.one)}</span>
           ))}
         </span>
+      )}
+      {detail.status === "ready" && (detail.detail.prompt !== "" || detail.detail.recent.length > 0) && (
+        <details className="bl-tip-detail">
+          <summary>Turn details</summary>
+          <div>
+            {detail.detail.prompt !== "" && <><span className="bl-tip-detail-label">Prompt</span><p>{detail.detail.prompt}</p></>}
+            {detail.detail.recent.length > 0 && <><span className="bl-tip-detail-label">Recent tools</span><ul>{detail.detail.recent.map((item, index) => <li key={index}>{item.label}</li>)}</ul></>}
+          </div>
+        </details>
       )}
       <span className="bl-tip-actions">
         <button type="button" className="bl-tip-open" onClick={() => onOpen(true)}>
@@ -140,7 +150,8 @@ export function BlockTooltip(props: TooltipProps) {
 /** Agents write `code` in their summaries; draw it as code, not as backticks. */
 function InlineCode({ text }: { text: string }) {
   const parts = text.split(/`([^`]+)`/);
-  if (parts.length === 1) return <>{text}</>;
+  const plain = (part: string) => part.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, "$1");
+  if (parts.length === 1) return <>{plain(text)}</>;
   return (
     <>
       {parts.map((part, i) =>
@@ -149,7 +160,7 @@ function InlineCode({ text }: { text: string }) {
             {part}
           </code>
         ) : (
-          part
+          plain(part)
         ),
       )}
     </>
