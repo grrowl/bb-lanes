@@ -15,7 +15,7 @@ mkdirSync(out, { recursive: true });
 async function pane(browser, scheme) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, colorScheme: scheme, deviceScaleFactor: 2 });
   page.on("pageerror", (error) => console.error(`[page error] ${error.message}`));
-  await page.goto(`${BB}/plugins/lanes/lanes`, { waitUntil: "networkidle" });
+  await page.goto(`${BB}/plugins/agent-lanes/lanes`, { waitUntil: "networkidle" });
   await page.waitForSelector(".bl-track", { timeout: 15000 });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(1500);

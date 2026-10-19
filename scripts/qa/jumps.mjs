@@ -17,7 +17,7 @@ const out = process.argv[3] ?? target === "bb" ? "docs/fidelity/live/jumps" : "d
 mkdirSync(out, { recursive: true });
 
 // The harness draws its own theme from `theme`; bb follows the colour scheme.
-const placeOf = (scheme) => (target === "bb" ? `${BB}/plugins/lanes/lanes` : `${HARNESS}?elapsed=6&speed=1&chrome=0&theme=${scheme}`);
+const placeOf = (scheme) => (target === "bb" ? `${BB}/plugins/agent-lanes/lanes` : `${HARNESS}?elapsed=6&speed=1&chrome=0&theme=${scheme}`);
 
 async function open(browser, { scheme, phone }) {
   const context = await browser.newContext({

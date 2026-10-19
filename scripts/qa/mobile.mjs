@@ -20,7 +20,7 @@ async function phone(browser, scheme) {
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => console.error(`[page error] ${error.message}`));
-  await page.goto(`${BB}/plugins/lanes/lanes`, { waitUntil: "networkidle" });
+  await page.goto(`${BB}/plugins/agent-lanes/lanes`, { waitUntil: "networkidle" });
   await page.waitForSelector(".bl-track", { timeout: 15000 });
   await page.waitForTimeout(2000);
   return { context, page, cdp: await context.newCDPSession(page) };

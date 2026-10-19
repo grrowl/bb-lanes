@@ -32,7 +32,7 @@ function HeaderContent(_props: PluginNavPanelProps) {
 
 // Declared in the manifest (bb.branding.experimental_icons) so the sidebar can
 // draw it before this bundle loads.
-const LANES_ICON = "lanes/lanes";
+const LANES_ICON = "agent-lanes/lanes";
 
 export default definePluginApp((app) => {
   app.slots.navPanel({

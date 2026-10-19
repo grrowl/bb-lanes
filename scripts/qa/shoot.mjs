@@ -2,7 +2,7 @@
 //   PLAYWRIGHT_DIR=/tmp/lanes-qa-tools node scripts/qa/shoot.mjs <outPrefix> [path] [width] [height] [scheme]
 import { BB, launch } from "./browser.mjs";
 
-const [out, path = "/plugins/lanes/lanes", w = "1440", h = "900", scheme = "dark"] = process.argv.slice(2);
+const [out, path = "/plugins/agent-lanes/lanes", w = "1440", h = "900", scheme = "dark"] = process.argv.slice(2);
 const browser = await launch();
 try {
   const page = await browser.newPage({ viewport: { width: +w, height: +h }, colorScheme: scheme, deviceScaleFactor: 2 });

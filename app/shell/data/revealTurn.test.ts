@@ -18,7 +18,7 @@ describe("revealTurn", () => {
   });
 
   it("does nothing when the thread never shows", async () => {
-    window.history.replaceState({ key: "b" }, "", "/plugins/lanes/lanes");
+    window.history.replaceState({ key: "b" }, "", "/plugins/agent-lanes/lanes");
     const popped = vi.fn();
     window.addEventListener("popstate", popped);
     revealTurn("thr_y", 12);
