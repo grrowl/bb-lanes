@@ -4,7 +4,7 @@
 import type { PluginSidebarThread } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import type { LaneBlock, LaneHandoff, LanesChangedSignal, LanesSnapshot } from "../../../shared/model";
-import { laneBlockSchema, laneHandoffSchema } from "../../../shared/rpc";
+import { laneBlockSchema, laneHandoffSchema } from "../../../shared/schemas";
 
 export interface LanesCache {
   since: number;
