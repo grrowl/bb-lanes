@@ -9,6 +9,10 @@ export function LoadingLanes() {
   return <LoadingGhosts />;
 }
 
+export function HistoryUnavailable({ onRetry }: { onRetry(): void }) {
+  return <EmptyCard title="History unavailable" body="Couldn’t load turns. Try again to load history." action={{ label: "Retry history", run: onRetry }} />;
+}
+
 export function EmptyLanes({
   span,
   filter,

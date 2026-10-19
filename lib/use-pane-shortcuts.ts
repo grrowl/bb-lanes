@@ -22,7 +22,14 @@ export function usePaneShortcuts(
     );
     const visible = (element: HTMLElement) => element.isConnected && element.getClientRects().length > 0;
     const onPointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node) lastPointerTarget.set(doc, event.target);
+      if (!(event.target instanceof Node)) return;
+      const target = event.target;
+      const overlay = target instanceof Element ? target.closest("[role='menu'], [role='dialog']") : null;
+      // A menu lives in a portal. Remember its trigger so choosing an item
+      // keeps keyboard ownership after the portal is removed.
+      const trigger = overlay?.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => doc.getElementById(id))
+        .find((element) => element?.getAttribute("aria-controls") === overlay.id);
+      lastPointerTarget.set(doc, trigger ?? target);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;

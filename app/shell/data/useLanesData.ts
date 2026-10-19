@@ -48,6 +48,7 @@ export interface LanesDataOptions {
 export interface LanesData {
   status: "loading" | "ready" | "error";
   error: string | null;
+  reconnecting: boolean;
   sidebar: PluginSidebarThreadsState;
   threadsById: ReadonlyMap<string, PluginSidebarThread>;
   providers: readonly ProviderInfo[];
@@ -249,6 +250,7 @@ export function useLanesData({ since, threadIds }: LanesDataOptions): LanesData 
   return {
     status: cache !== null ? "ready" : error !== null ? "error" : "loading",
     error,
+    reconnecting: connection !== "connected",
     sidebar,
     threadsById,
     providers,

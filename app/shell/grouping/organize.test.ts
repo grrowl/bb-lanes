@@ -212,6 +212,18 @@ describe("organizeLanes: sort", () => {
 });
 
 describe("organizeLanes: filters and search", () => {
+  it("excludes idle lanes whose turns start after a historical window, while keeping busy lanes", () => {
+    const blocks = [
+      makeBlock({ id: "in", threadId: "visible", start: 20, end: 50, status: "done" }),
+      makeBlock({ id: "after", threadId: "later", start: 500, end: 600, status: "done" }),
+    ];
+    const result = organizeLanes(input({
+      threads: [makeThread({ id: "visible" }), makeThread({ id: "later" }), makeThread({ id: "busy", runtimeStatus: "active" })],
+      filter: "active", activity: summarizeActivity(blocks, 0, 1000, 100),
+    }));
+    expect(result.rows.filter((row) => row.kind === "lane").map((row) => row.id)).toEqual(["busy", "visible"]);
+  });
+
   const threads = [
     makeThread({ id: "lead", title: "Plan the release" }),
     makeThread({ id: "worker", title: "Write migration", parentThreadId: "lead", runtimeStatus: "active" }),

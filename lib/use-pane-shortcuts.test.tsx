@@ -64,3 +64,22 @@ it("claims handled keys before host shortcuts and lets unhandled keys through", 
     expect(host).toHaveBeenCalledTimes(1);
   } finally { document.removeEventListener("keydown", host); }
 });
+
+it("keeps the owning pane's shortcuts after choosing an item in a portalled menu", () => {
+  const one = vi.fn(() => true);
+  const two = vi.fn(() => true);
+  render(<><Pane name="one" handle={one} /><Pane name="two" handle={two} /></>);
+  const trigger = screen.getByRole("button", { name: "two" });
+  trigger.id = "window-trigger";
+  trigger.setAttribute("aria-controls", "window-menu");
+  const menu = document.createElement("div");
+  menu.id = "window-menu";
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("aria-labelledby", trigger.id);
+  document.body.append(menu);
+  fireEvent.pointerDown(menu);
+  menu.remove();
+  fireEvent.keyDown(document.body, { key: "n" });
+  expect(one).not.toHaveBeenCalled();
+  expect(two).toHaveBeenCalledTimes(1);
+});

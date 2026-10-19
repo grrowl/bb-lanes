@@ -65,6 +65,90 @@ describe("Lanes app registration", () => {
 });
 
 describe("Lanes nav panel", () => {
+  it("supports filter arrow keys, restores focus from search, and accepts span shortcuts inside the menu", async () => {
+    const app = await loadApp();
+    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
+      pluginId: "lanes-test-toolbar-keys", sidebarThreads, rpc: rpc(),
+    });
+    try {
+      await slot.findByText("Spec the pane");
+      const active = screen.getByRole("radio", { name: "Active" });
+      act(() => active.focus());
+      fireEvent.keyDown(active, { key: "ArrowRight" });
+      const needs = screen.getByRole("radio", { name: /Needs you/ });
+      expect(document.activeElement).toBe(needs);
+      expect(needs.getAttribute("aria-checked")).toBe("true");
+      expect(screen.queryByText("Fix typos")).toBeNull();
+      const search = screen.getByRole("searchbox");
+      act(() => search.focus());
+      fireEvent.change(search, { target: { value: "deploy" } });
+      fireEvent.keyDown(search, { key: "Escape" });
+      expect(document.activeElement).toBe(search);
+      fireEvent.keyDown(search, { key: "Escape" });
+      expect(document.activeElement).toBe(needs);
+      fireEvent.keyDown(needs, { key: "Home" });
+      expect(document.activeElement).toBe(screen.getByRole("radio", { name: "All" }));
+
+      const turn = screen.getByRole("button", { name: /Plan the release: Spec the pane/ });
+      act(() => turn.focus());
+      act(() => search.focus());
+      fireEvent.change(search, { target: { value: "no matching lanes" } });
+      await waitFor(() => expect(screen.queryByRole("button", { name: /Plan the release: Spec the pane/ })).toBeNull());
+      fireEvent.keyDown(search, { key: "Escape" });
+      const restored = await screen.findByRole("button", { name: /Plan the release: Spec the pane/ });
+      fireEvent.keyDown(search, { key: "Escape" });
+      expect(document.activeElement).toBe(restored);
+
+      const window = screen.getByRole("button", { name: "Window: Last 15m" });
+      fireEvent.keyDown(window, { key: "Enter" });
+      const menu = await screen.findByRole("menu");
+      expect(within(menu).getByRole("menuitemradio", { name: /15 minutes/ }).getAttribute("aria-checked")).toBe("true");
+      fireEvent.keyDown(menu, { key: "2" });
+      expect(screen.getByRole("button", { name: "Window: Last 1h" })).toBeTruthy();
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    } finally { slot.lifecycle.unmount(); }
+  });
+
+  it("shows an unavailable history state with a working retry instead of claiming there is no activity", async () => {
+    const app = await loadApp();
+    let unavailable = true;
+    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
+      pluginId: "lanes-test-history-retry",
+      sidebarThreads: { ...sidebarThreads, threads: [makeThread({ id: "idle" })] },
+      rpc: { ...rpc(), lanes_window: () => {
+        if (unavailable) throw new Error("Connection dropped");
+        return snapshot([]);
+      } },
+    });
+    try {
+      const retry = await slot.findByRole("button", { name: "Retry history" });
+      expect(screen.queryByText(/No agent activity/)).toBeNull();
+      unavailable = false;
+      fireEvent.click(retry);
+      await slot.findByText("No agent activity in the last 15m");
+      expect(screen.queryByRole("button", { name: "Retry history" })).toBeNull();
+    } finally { slot.lifecycle.unmount(); }
+  });
+
+  it("restores the waiting turn when bb refuses an inline approval", async () => {
+    const app = await loadApp();
+    const waiting = makeBlock({ id: "approval", threadId: "asks", start: NOW - 60_000, status: "waiting", title: "Review deployment", ask: {
+      interactionId: "approval-id", kind: "approval", prompt: "Allow deployment?", canDecideInline: true,
+    } });
+    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, {
+      pluginId: "lanes-test-approval-rollback", sidebarThreads,
+      rpc: { ...rpc(snapshot([waiting])), lanes_decide: () => ({ ok: false, message: "Approval expired" }) },
+    });
+    try {
+      const turn = await slot.findByRole("button", { name: /Deploy to staging: Review deployment – Needs you/ });
+      fireEvent.click(turn);
+      fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+      await waitFor(() => expect(slot.inspection.rpcCalls.some((call) => call.method === "lanes_decide")).toBe(true));
+      await slot.findByRole("button", { name: /Deploy to staging: Review deployment – Needs you/ });
+      expect(document.activeElement).toBe(turn);
+    } finally { slot.lifecycle.unmount(); }
+  });
+
   it("keeps viewport shortcuts working after closing help, without stealing typing or another pane's keys", async () => {
     const rects = vi.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}] as unknown as DOMRectList);
     const matchMedia = window.matchMedia;
@@ -168,7 +252,9 @@ describe("Lanes nav panel", () => {
     await waitFor(() => expect(windowCalls()).toBe(before + 1));
 
     await slot.behavior.setRealtimeConnectionState("reconnecting");
+    expect(screen.getByText("Reconnecting")).toBeTruthy();
     await slot.behavior.setRealtimeConnectionState("connected");
+    expect(screen.queryByText("Reconnecting")).toBeNull();
     await waitFor(() => expect(windowCalls()).toBe(before + 2));
     slot.lifecycle.unmount();
   });

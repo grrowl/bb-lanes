@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner";
 import { useIsCompactViewport } from "@/components/ui/hooks/use-compact-viewport";
 import type { Row, RowDensity, TimelineProps, Viewport } from "../../shared/view";
-import { EmptyLanes, LoadingLanes } from "./components/EmptyLanes";
+import { EmptyLanes, HistoryUnavailable, LoadingLanes } from "./components/EmptyLanes";
 import { LiveSummary } from "./components/HeaderContent";
 import { GroupHeaderCell, LaneHeaderCell, type LaneActions } from "./components/RowHeader";
 import { Toolbar } from "./components/Toolbar";
@@ -124,8 +124,8 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
   // A lane is active if it did anything in the live window or the panned one.
   const windowStart = Math.min(rowsNow, viewEnd) - state.span;
   const activity = useMemo(
-    () => summarizeActivity(data.blocks, windowStart, rowsNow),
-    [data.blocks, windowStart, rowsNow],
+    () => summarizeActivity(data.blocks, windowStart, rowsNow, viewEnd),
+    [data.blocks, windowStart, rowsNow, viewEnd],
   );
 
   const collapsedGroups = useMemo(() => new Set(state.collapsedGroups), [state.collapsedGroups]);
@@ -305,7 +305,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
         groupIds={groupIds}
         condensed={condensed}
         searchRef={searchRef}
-        status={{ indexing: data.indexing, historyError: data.error, onRetry: data.refetch }}
+        status={{ indexing: data.indexing, historyError: data.error, reconnecting: data.reconnecting, onRetry: data.refetch }}
         summary={teamCounts === null ? undefined : <LiveSummary counts={teamCounts} />}
       />
       <div className="lanes-card">
@@ -334,7 +334,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               namesWidth: namesColumnWidth(width, state.namesWidthOverride),
               neighbors,
               onNamesWidthChange: actions.setNamesWidth,
-              emptyState: (
+              emptyState: data.error !== null ? <HistoryUnavailable onRetry={data.refetch} /> : (
                 <EmptyLanes
                   span={state.span}
                   filter={state.filter}

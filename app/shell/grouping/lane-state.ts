@@ -68,6 +68,7 @@ export function summarizeActivity(
   blocks: readonly LaneBlock[],
   windowStart: number,
   now: number,
+  windowEnd = now,
 ): Map<string, ThreadActivity> {
   const byThread = new Map<string, ThreadActivity & { lastStart: number; modelAt: number }>();
   for (const block of blocks) {
@@ -86,7 +87,7 @@ export function summarizeActivity(
       byThread.set(block.threadId, entry);
     }
     entry.lastActivityAt = Math.max(entry.lastActivityAt, end);
-    if (end >= windowStart) entry.inWindow = true;
+    if (block.start <= windowEnd && end >= windowStart) entry.inWindow = true;
     if (block.end === null && (block.status === "running" || block.status === "waiting")) {
       // A waiting turn outranks a running one if the history briefly holds both.
       if (entry.openStatus !== "waiting") entry.openStatus = block.status;

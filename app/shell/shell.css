@@ -800,6 +800,15 @@ a.lanes-name:hover {
   color: var(--bl-faint);
   font-variant-numeric: tabular-nums;
 }
+.lanes-window-menu .lanes-menu-key {
+  min-width: 12px;
+  padding-left: 0;
+  text-align: right;
+}
+.lanes-window-menu .lanes-menu-check {
+  flex: none;
+  margin-left: 4px;
+}
 .lanes-shortcuts {
   z-index: 50;
   max-width: calc(100vw - 24px);
