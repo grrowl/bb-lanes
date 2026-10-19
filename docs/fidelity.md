@@ -335,3 +335,18 @@ hand-off lines meet the middle of the block, not the middle of the row.
 The caption uses the text colour (`--bl-text`) rather than the muted colour.
 The caption stands in for the lane's name, and the muted colour was too faint
 to read at 11px on a phone.
+
+## Interaction audit
+
+`scripts/qa/audit.mjs` previews the checkout's built frontend inside real bb
+without changing the installed plugin. It checks the window menu's shortcut
+column and selection state, keys while the menu is open, filter navigation,
+search focus restoration, turn detail, the narrow View menu, and a failed
+history request. It samples narrow row reordering on animation frames to
+check that captions move with their lanes. Light, dark and narrow screenshots
+and the JSON results go to `docs/fidelity/live/audit/` (ignored by git).
+
+Run `bb plugin build` first, then
+`PLAYWRIGHT_DIR=/tmp/lanes-qa-tools node scripts/qa/audit.mjs`.
+The SDK tests additionally check approval rollback, reconnect notifications,
+history retry, and racing detail requests without answering real approvals.
