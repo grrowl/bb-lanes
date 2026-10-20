@@ -156,7 +156,9 @@ from bb's real data, which is larger and messier than upstream's demo.
   records about a turn.
 - **Tooltip.** Upstream's tooltip has an Open link only when it is given an
   `onOpen` handler, and its demo has none. Ours always ends with "Open" and
-  "Open here", because opening a thread beside Lanes is a fixed opinion. It
+  the alternate destination ("Open here" or "Open to the side"). Opening
+  beside Lanes is the default; the keyboard help's saved checkbox changes it,
+  and ⌘/Ctrl reverses it for click or Enter. It
   also lists the turn's tool counts. Its summary loads lazily behind a
   shimmer, shows `code` as code, and keeps each point to three lines,
   because real summaries are longer than upstream's.

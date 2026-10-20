@@ -17,6 +17,7 @@ import { GROUP_MODES, LANE_FILTERS, type GroupMode, type LaneFilter } from "../g
 import type { SurfaceActions, SurfaceState } from "../surface-store";
 import { formatDuration, formatWindow, presetForSpan, SPAN_PRESETS } from "../time";
 import { CheckGlyph, Chevron, CloseGlyph, MoreGlyph, SearchGlyph } from "./glyphs";
+import { openModifier } from "../../../lib/thread-opening";
 
 export interface FilterCounts {
   waiting: number;
@@ -24,6 +25,8 @@ export interface FilterCounts {
 }
 
 export interface ToolbarProps {
+  openBeside: boolean;
+  onOpenBesideChange(open: boolean): void;
   state: SurfaceState;
   actions: SurfaceActions;
   counts: FilterCounts;
@@ -239,7 +242,7 @@ export function WindowMenu({ state, actions }: { state: SurfaceState; actions: S
   );
 }
 
-export function Toolbar({ state, actions, counts, groupIds, condensed, summary, searchRef, status }: ToolbarProps) {
+export function Toolbar({ state, actions, counts, groupIds, condensed, summary, searchRef, status, openBeside, onOpenBesideChange }: ToolbarProps) {
   const groupLabel = GROUP_MODES.find((mode) => mode.id === state.groupMode)?.label ?? "Project";
   const anyExpanded = groupIds.some((id) => !state.collapsedGroups.includes(id));
   const anyCollapsed = groupIds.some((id) => state.collapsedGroups.includes(id));
@@ -294,6 +297,11 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, summary, 
               <GroupItems value={state.groupMode} onChange={actions.setGroupMode} />
               {collapseItems === null ? null : <DropdownMenuSeparator />}
               {collapseItems}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem role="menuitemcheckbox" aria-checked={openBeside} onSelect={() => onOpenBesideChange(!openBeside)}>
+                Open to the side by default
+                <CheckGlyph off={!openBeside} />
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </span>
@@ -333,13 +341,19 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, summary, 
           <Popover.Portal>
             <Popover.Content align="end" sideOffset={4} className={`${MENU} lanes-shortcuts`} aria-label="Keyboard shortcuts" tabIndex={-1}>
               <MenuLabel>Keyboard shortcuts</MenuLabel>
-              <p>With focus in Lanes. Esc closes this help.</p>
+              <p>Click anywhere in Lanes to use these keys. Esc closes this help.</p>
               <dl>
                 {KEYS.map(([what, keys]) => (
                   <div key={what}><dt>{what}</dt><dd><kbd>{keys}</kbd></dd></div>
                 ))}
               </dl>
               <p>Focus a turn to move with the arrow keys.</p>
+              <div className="lanes-shortcuts-divider" />
+              <button type="button" role="checkbox" aria-checked={openBeside} className="lanes-opening-preference" onClick={() => onOpenBesideChange(!openBeside)}>
+                Open to the side by default
+                <CheckGlyph off={!openBeside} />
+              </button>
+              <p>{openModifier()}-click or {openModifier()}-Enter opens a thread {openBeside ? "here" : "to the side"}.</p>
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>

@@ -1,7 +1,8 @@
 // The two popovers a block opens: the dark tooltip ("what got done") and the
 // decision card for a turn that waits on a person. Both follow their block as
 // the window slides; the controller calls `follow` after every transform.
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { openModifier, threadSplit } from "../../lib/thread-opening";
 import type { BlockDetail, LaneBlock } from "../../shared/model";
 import type { ViewController } from "./controller";
 import { STATUS_LABEL, blockDuration, blockTitle, plural } from "./labels";
@@ -64,6 +65,7 @@ const COUNT_KINDS: { key: keyof LaneBlock["counts"]; one: string }[] = [
 ];
 
 export interface TooltipProps extends PlacementProps {
+  openBeside: boolean;
   id: string;
   now: number;
   detail: DetailState;
@@ -73,7 +75,7 @@ export interface TooltipProps extends PlacementProps {
 }
 
 export function BlockTooltip(props: TooltipProps) {
-  const { id, block, now, detail, describe, onOpen, onRetry, up } = props;
+  const { id, block, now, detail, describe, onOpen, onRetry, up, openBeside } = props;
   const ref = useRef<HTMLDivElement>(null);
   usePopoverPlacement(ref, props, "center");
   const lane = describe(block.threadId).title;
@@ -136,14 +138,39 @@ export function BlockTooltip(props: TooltipProps) {
         </details>
       )}
       <span className="bl-tip-actions">
-        <button type="button" className="bl-tip-open" onClick={() => onOpen(true)}>
+        <OpenThreadButton className="bl-tip-open" split={openBeside} onOpen={onOpen}>
           Open<kbd aria-hidden="true">↵</kbd>
-        </button>
-        <button type="button" className="bl-tip-open bl-tip-open--quiet" onClick={() => onOpen(false)}>
-          Open here<kbd aria-hidden="true">⇧↵</kbd>
-        </button>
+        </OpenThreadButton>
+        <OpenThreadButton className="bl-tip-open bl-tip-open--quiet" split={!openBeside} onOpen={onOpen}>
+          {openBeside ? "Open here" : "Open to the side"}<kbd aria-hidden="true">{openModifier()}↵</kbd>
+        </OpenThreadButton>
       </span>
     </div>
+  );
+}
+
+function OpenThreadButton({ split, onOpen, children, className, autoFocus }: {
+  split: boolean;
+  onOpen(split: boolean): void;
+  children: ReactNode;
+  className: string;
+  autoFocus?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={className}
+      autoFocus={autoFocus}
+      onClick={(event) => onOpen(threadSplit(split, event))}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          onOpen(!split);
+        }
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -168,6 +195,7 @@ function InlineCode({ text }: { text: string }) {
 }
 
 export interface DecisionProps extends PlacementProps {
+  openBeside: boolean;
   id: string;
   describe: Describe;
   onDecide(decision: "approve" | "reject"): void;
@@ -175,7 +203,7 @@ export interface DecisionProps extends PlacementProps {
 }
 
 export function DecisionPopover(props: DecisionProps) {
-  const { id, block, describe, onDecide, onOpen, up } = props;
+  const { id, block, describe, onDecide, onOpen, up, openBeside } = props;
   const ref = useRef<HTMLDivElement>(null);
   usePopoverPlacement(ref, props, "end");
   const ask = block.ask;
@@ -194,9 +222,9 @@ export function DecisionPopover(props: DecisionProps) {
       <span className="bl-ask-title">{title}</span>
       {ask?.prompt && <span className="bl-ask-text">{ask.prompt}</span>}
       <span className="bl-ask-actions">
-        <button type="button" className="bl-link" onClick={() => onOpen(true)}>
+        <OpenThreadButton className="bl-link" split={openBeside} onOpen={onOpen}>
           Open
-        </button>
+        </OpenThreadButton>
         {inline ? (
           <>
             <button type="button" className="bl-btn" onClick={() => onDecide("reject")}>
@@ -207,9 +235,9 @@ export function DecisionPopover(props: DecisionProps) {
             </button>
           </>
         ) : (
-          <button type="button" className="bl-btn bl-btn--primary" autoFocus onClick={() => onOpen(true)}>
+          <OpenThreadButton className="bl-btn bl-btn--primary" split={openBeside} onOpen={onOpen} autoFocus>
             Answer in thread
-          </button>
+          </OpenThreadButton>
         )}
       </span>
     </div>

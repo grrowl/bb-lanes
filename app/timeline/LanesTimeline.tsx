@@ -53,6 +53,7 @@ import { LinkingStyle, cssString } from "./linking";
 import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
 import { usePaneShortcuts } from "../../lib/use-pane-shortcuts";
+import { threadSplit } from "../../lib/thread-opening";
 
 const OVERSCAN_ROWS = 6;
 /** Below this track width a jumper and its label would crowd the blocks they point past. */
@@ -649,13 +650,12 @@ export function LanesTimeline(props: TimelineProps) {
       }
       const block = index.byId.get(navId.slice(2));
       if (!block) return;
-      // Threads open beside Lanes; ⌘/Ctrl opens one here instead.
       if (event.metaKey || event.ctrlKey) {
-        openThread(block, false);
+        openThread(block, threadSplit(latest.current.openBeside ?? true, event));
         return;
       }
       if (event.detail === 2) {
-        openThread(block, true);
+        openThread(block, latest.current.openBeside ?? true);
         return;
       }
       openPopover(selection.get().openBlockId === block.id ? null : block.id);
@@ -883,8 +883,8 @@ export function LanesTimeline(props: TimelineProps) {
             return moveFocus(nav.tabFrom(model, current, event.shiftKey));
           case "Enter": {
             const block = navId.startsWith("b:") ? index.byId.get(navId.slice(2)) : undefined;
-            if (block && (event.metaKey || event.ctrlKey)) openThread(block, false);
-            else if (block && openId === block.id && block.status !== "waiting") openThread(block, !event.shiftKey);
+            if (block && (event.metaKey || event.ctrlKey)) openThread(block, threadSplit(latest.current.openBeside ?? true, event));
+            else if (block && openId === block.id && block.status !== "waiting") openThread(block, latest.current.openBeside ?? true);
             else activateNav(navId, { shiftKey: event.shiftKey, metaKey: false, ctrlKey: false });
             return true;
           }
@@ -942,6 +942,7 @@ export function LanesTimeline(props: TimelineProps) {
     "data-moving": moving ? "" : undefined,
     style: rootStyle,
     role: "region",
+    tabIndex: -1,
     "aria-label": "Agent lanes",
     onKeyDown,
     onFocusCapture,
@@ -1126,6 +1127,7 @@ export function LanesTimeline(props: TimelineProps) {
                     up={openUp}
                     controller={controller}
                     describe={describe}
+                    openBeside={props.openBeside ?? true}
                     onDecide={(decision) => decide(openBlock, decision)}
                     onOpen={(split) => openThread(openBlock, split)}
                   />
@@ -1146,6 +1148,7 @@ export function LanesTimeline(props: TimelineProps) {
                       focusBlockElement(openBlock.id);
                     }}
                     describe={describe}
+                    openBeside={props.openBeside ?? true}
                     onOpen={(split) => openThread(openBlock, split)}
                   />
                 )

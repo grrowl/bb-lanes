@@ -36,6 +36,7 @@ import { SECOND, SPAN_PRESETS } from "./time";
 import "./shell.css";
 import { revealTurn } from "./data/revealTurn";
 import { usePaneShortcuts } from "../../lib/use-pane-shortcuts";
+import { useThreadOpening } from "./thread-opening";
 
 /** Below this pane width the toolbar condenses into one menu. */
 const CONDENSED_WIDTH = 640;
@@ -84,6 +85,7 @@ function subtitleFor(
 
 export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: LanesPaneProps) {
   const [state, actions] = useSurface(surface, scope);
+  const [openBeside, setOpenBeside] = useThreadOpening();
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const width = useElementWidth(rootRef);
@@ -254,10 +256,11 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
           highlighted={row.id === highlightedThreadId}
           revealed={context.hovered || context.focused}
           actions={laneActions}
+          openBeside={openBeside}
         />
       );
     },
-    [organized, providersById, data.threadsById, activity, terms, highlightedThreadId, laneActions, actions],
+    [organized, providersById, data.threadsById, activity, terms, highlightedThreadId, laneActions, actions, openBeside],
   );
 
   const describeThread = useCallback(
@@ -297,10 +300,12 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
   const loading = data.sidebar.status === "loading" || (data.status === "loading" && threads.length === 0);
 
   return (
-    <div ref={rootRef} className="bl-theme lanes-chrome lanes-tray" data-lanes-shortcuts={surface}>
+    <div ref={rootRef} className="bl-theme lanes-chrome lanes-tray" data-lanes-shortcuts={surface} tabIndex={-1}>
       <Toolbar
         state={state}
         actions={actions}
+        openBeside={openBeside}
+        onOpenBesideChange={setOpenBeside}
         counts={filterCounts}
         groupIds={groupIds}
         condensed={condensed}
@@ -326,6 +331,7 @@ export function LanesPane({ surface, scope = "", teamOf = null, Timeline }: Lane
               density: ROW_DENSITY,
               renderRowHeader,
               onOpenThread,
+              openBeside,
               onDecide: data.decide,
               onToggleRow,
               loadDetail: data.loadDetail,

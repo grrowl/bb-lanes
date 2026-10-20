@@ -838,6 +838,37 @@ a.lanes-name:hover {
   font-family: inherit;
   font-size: 11px;
 }
+.lanes-shortcuts-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--bl-line);
+}
+.lanes-opening-preference {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bl-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lanes-opening-preference:hover,
+.lanes-opening-preference:focus-visible {
+  background: var(--bl-wash);
+}
+.lanes-opening-preference:focus-visible {
+  outline: 2px solid var(--bl-focus);
+  outline-offset: -2px;
+}
+.lanes-opening-preference:active {
+  background: var(--bl-line);
+}
 .lanes-menu-check {
   margin-left: auto;
   color: var(--bl-strong);

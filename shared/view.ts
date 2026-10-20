@@ -74,6 +74,8 @@ export interface TimelineProps {
    * so the thread opens scrolled to that turn rather than at its latest message.
    */
   onOpenThread(threadId: string, options: { split: boolean; seq?: number | null }): void;
+  /** Plain activation opens beside Lanes by default; ⌘/Ctrl reverses it. */
+  openBeside?: boolean;
   /** Inline Approve / Reject on a waiting block. */
   onDecide(block: LaneBlock, decision: "approve" | "reject"): Promise<void>;
   /** Group disclosure toggled from the engine (click on a collapsed group's summary strip). */

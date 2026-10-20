@@ -30,6 +30,12 @@ export function usePaneShortcuts(
       const trigger = overlay?.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => doc.getElementById(id))
         .find((element) => element?.getAttribute("aria-controls") === overlay.id);
       lastPointerTarget.set(doc, trigger ?? target);
+      // Blank track, ruler and empty states must own keys too, even when a
+      // previously focused turn disappeared or focus was in another pane.
+      if (belongs(target) && target instanceof Element &&
+          !target.closest("button, a, input, textarea, select, [contenteditable], [tabindex]:not([tabindex='-1']), [role='menu'], [role='dialog'], .bl-pop")) {
+        scope.focus({ preventScroll: true });
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;

@@ -21,6 +21,7 @@ import type { ProviderInfo } from "../data/useLanesData";
 import type { GroupMeta, LaneMeta, LaneState } from "../grouping/types";
 import { Chevron } from "./glyphs";
 import { ProviderAvatar } from "./ProviderAvatar";
+import { openModifier, threadSplit } from "../../../lib/thread-opening";
 
 const STATE_LABEL: Record<LaneState, string | null> = {
   idle: "Idle",
@@ -146,6 +147,7 @@ export function GroupHeaderCell({
 }
 
 export interface LaneHeaderCellProps {
+  openBeside?: boolean;
   row: LaneRow;
   thread: PluginSidebarThread;
   meta: LaneMeta | undefined;
@@ -189,6 +191,7 @@ function TreeGuides({ row, meta }: { row: LaneRow; meta: LaneMeta | undefined })
 }
 
 export function LaneHeaderCell({
+  openBeside = true,
   row,
   thread,
   meta,
@@ -201,12 +204,9 @@ export function LaneHeaderCell({
 }: LaneHeaderCellProps) {
   const split = experimental_useSidebarThreadSplit(thread.id);
 
-  // Lanes stays on screen: a plain click opens the thread beside it, and
-  // ⌘/Ctrl-click opens it in place. Where splits are off, bb falls back to
-  // ordinary navigation.
   const openFromClick = (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
-    actions.open(thread.id, !(event.metaKey || event.ctrlKey));
+    actions.open(thread.id, threadSplit(openBeside, event));
   };
 
   return (
@@ -240,6 +240,12 @@ export function LaneHeaderCell({
                 href={thread.href}
                 {...split.splitProps}
                 onClick={openFromClick}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    actions.open(thread.id, !openBeside);
+                  }
+                }}
                 title={thread.displayTitle}
                 className="lanes-name"
                 data-context={meta?.matched === false ? "" : undefined}
@@ -262,12 +268,12 @@ export function LaneHeaderCell({
             <ContextMenuItem onSelect={() => actions.open(thread.id, true)}>
               <Icon name="Columns2" aria-hidden />
               Open beside
-              <span className="lanes-menu-key">Click</span>
+              <span className="lanes-menu-key">{openBeside ? "Click" : `${openModifier()} Click`}</span>
             </ContextMenuItem>
             <ContextMenuItem onSelect={() => actions.open(thread.id, false)}>
               <Icon name="MessageSquare" aria-hidden />
               Open here
-              <span className="lanes-menu-key">⌘ Click</span>
+              <span className="lanes-menu-key">{openBeside ? `${openModifier()} Click` : "Click"}</span>
             </ContextMenuItem>
           </>
         ) : (

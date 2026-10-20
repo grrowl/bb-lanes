@@ -7,7 +7,7 @@ import { usePaneShortcuts } from "./use-pane-shortcuts";
 function Pane({ name, handle }: { name: string; handle: (event: KeyboardEvent) => boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   usePaneShortcuts(ref, handle);
-  return <div ref={ref} data-lanes-shortcuts={name} data-testid={name}>
+  return <div ref={ref} data-lanes-shortcuts={name} data-testid={name} tabIndex={-1}>
     <button>{name}</button>
     <div role="menu"><button>{name} menu</button></div>
     <div contentEditable suppressContentEditableWarning><span data-testid={`${name}-editor`}>Typing</span></div>
@@ -26,12 +26,13 @@ it("routes keys to the focused pane, and follows a click on empty space when foc
   fireEvent.keyDown(button, { key: "n" });
   expect(one).not.toHaveBeenCalled();
   expect(two).toHaveBeenCalledTimes(1);
-  button.blur();
   fireEvent.pointerDown(screen.getByTestId("one"));
+  expect(document.activeElement).toBe(screen.getByTestId("one"));
   fireEvent.keyDown(document.body, { key: "n" });
   expect(one).toHaveBeenCalledTimes(1);
   expect(two).toHaveBeenCalledTimes(1);
   fireEvent.pointerDown(document.body);
+  (document.activeElement as HTMLElement).blur();
   fireEvent.keyDown(document.body, { key: "n" });
   expect(one).toHaveBeenCalledTimes(1);
   expect(two).toHaveBeenCalledTimes(1);

@@ -179,6 +179,21 @@ describe("Lanes nav panel", () => {
       fireEvent.keyDown(help, { key: "n" });
       await screen.findByRole("button", { name: "Window: Last 1h" });
 
+      // Clicking the card/ruler takes focus back from another pane. Shortcuts
+      // must also recover after zooming/panning until no turns are visible.
+      const otherPane = document.createElement("button");
+      document.body.append(otherPane);
+      otherPane.focus();
+      const pane = slot.container.querySelector<HTMLElement>(".lanes-tray")!;
+      fireEvent.pointerDown(slot.container.querySelector(".lanes-card")!);
+      expect(document.activeElement).toBe(pane);
+      fireEvent.keyDown(pane, { key: "[" });
+      await screen.findByRole("button", { name: /Window: .*not following the clock/ });
+      await waitFor(() => expect(screen.getByRole("region", { name: "Agent lanes" }).hasAttribute("data-moving")).toBe(false));
+      fireEvent.keyDown(pane, { key: "n" });
+      await screen.findByRole("button", { name: "Window: Last 1h" });
+      otherPane.remove();
+
       fireEvent.keyDown(help, { key: "/" });
       const search = screen.getByRole("searchbox");
       expect(document.activeElement).toBe(search);
@@ -300,6 +315,42 @@ describe("Lanes nav panel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show last 1h" }));
     await slot.findByText("No agent activity in the last 1h");
     slot.lifecycle.unmount();
+  });
+
+  it("saves one opening preference for headers, turns and team panes", async () => {
+    const app = await loadApp();
+    const options = { pluginId: "lanes-test-opening", sidebarThreads, rpc: rpc() };
+    const slot = renderSlot<PluginNavPanelProps, typeof rpcContract>(app.navPanels[0]!, { subPath: "" }, options);
+    let team: ReturnType<typeof renderSlot> | undefined;
+    try {
+      await slot.findByText("Spec the pane");
+      fireEvent.click(screen.getByRole("button", { name: "Keyboard shortcuts" }));
+      const preference = screen.getByRole("checkbox", { name: "Open to the side by default" });
+      expect(preference.getAttribute("aria-checked")).toBe("true");
+      fireEvent.click(preference);
+      expect(preference.getAttribute("aria-checked")).toBe("false");
+      expect(window.localStorage.getItem("lanes-test-opening:openBeside")).toBe("false");
+      fireEvent.keyDown(preference, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: "Keyboard shortcuts" })).toBeNull());
+
+      const header = slot.getByRole("link", { name: "Plan the release" });
+      fireEvent.click(header);
+      expect(slot.inspection.sidebarActionCalls.at(-1)).toMatchObject({ method: "open", threadId: "lead", options: { split: false } });
+      fireEvent.click(header, { ctrlKey: true });
+      expect(slot.inspection.sidebarActionCalls.at(-1)).toMatchObject({ options: { split: true } });
+      fireEvent.keyDown(header, { key: "Enter", metaKey: true });
+      expect(slot.inspection.sidebarActionCalls.at(-1)).toMatchObject({ options: { split: true } });
+      const turn = slot.getByRole("button", { name: /Plan the release: Spec the pane/ });
+      fireEvent.click(turn, { detail: 2 });
+      expect(slot.inspection.sidebarActionCalls.at(-1)).toMatchObject({ options: { split: false } });
+
+      team = renderSlot<PluginThreadPanelProps, typeof rpcContract>(app.threadPanelActions[0]!, { threadId: "worker", params: null }, options);
+      const teamHeader = await within(team.container).findByRole("link", { name: "Plan the release" });
+      fireEvent.click(teamHeader);
+      expect(team.inspection.sidebarActionCalls.at(-1)).toMatchObject({ options: { split: false } });
+      fireEvent.click(teamHeader, { metaKey: true });
+      expect(team.inspection.sidebarActionCalls.at(-1)).toMatchObject({ options: { split: true } });
+    } finally { team?.lifecycle.unmount(); slot.lifecycle.unmount(); }
   });
 });
 

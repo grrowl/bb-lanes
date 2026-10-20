@@ -138,18 +138,34 @@ describe("LanesTimeline", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("opens threads beside Lanes, or here with ⇧↵ and ⌘-click", () => {
-    const { props } = setup();
+  it.each([true, false])("opens every thread action with openBeside=%s and reverses it with ⌘/Ctrl", (openBeside) => {
+    const { props } = setup({ openBeside });
     const merge = block(/Merge the backend and brief the shell/);
     merge.focus();
     fireEvent.keyDown(merge, { key: "Enter" });
     fireEvent.keyDown(merge, { key: "Enter" });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: true }));
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: openBeside }));
     fireEvent.click(merge);
-    fireEvent.keyDown(merge, { key: "Enter", shiftKey: true });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: false }));
+    fireEvent.keyDown(merge, { key: "Enter", metaKey: true });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: !openBeside }));
     fireEvent.click(block(/Customer interviews/), { metaKey: true });
-    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_research", expect.objectContaining({ split: false }));
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_research", expect.objectContaining({ split: !openBeside }));
+    fireEvent.click(merge, { detail: 2 });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: openBeside }));
+
+    fireEvent.click(merge);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: openBeside }));
+    fireEvent.click(merge);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Open" }), { key: "Enter", ctrlKey: true });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: !openBeside }));
+    fireEvent.click(merge);
+    fireEvent.click(screen.getByRole("button", { name: openBeside ? /^Open here/ : /^Open to the side/ }));
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_coord", expect.objectContaining({ split: !openBeside }));
+
+    fireEvent.click(block(/Rotate the API keys/));
+    fireEvent.click(screen.getByRole("button", { name: "Open" }), { ctrlKey: true });
+    expect(props.onOpenThread).toHaveBeenLastCalledWith("thr_keys", expect.objectContaining({ split: !openBeside }));
   });
 
   it("decides inline: Approve has focus and answers the waiting turn", async () => {

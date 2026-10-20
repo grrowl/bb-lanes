@@ -169,8 +169,9 @@ native sidebar, theme tokens, status colours, and builtin plugins such as
   live. Momentum feels native; no jank (transform-only during gestures).
 - Click a block: the dark tooltip (head "Thread · Done · 4m", summary
   bullets lazy-loaded with a skeleton shimmer, tool counts, prompt) with
-  **Open** (Enter) and **Open in split** (⇧Enter). ⌘-click opens in split
-  directly. Double-click opens.
+  **Open** (Enter) follows the saved "Open to the side by default" preference.
+  ⌘/Ctrl-Enter or ⌘/Ctrl-click opens using the other destination; the second
+  tooltip action names that destination. Double-click follows the default.
 - Waiting block: decision popover with the ask. Inline Approve / Reject when
   the server says `canDecideInline`; otherwise "Answer in thread" opening it.
   Optimistic: the block returns to running immediately, rolls back on error

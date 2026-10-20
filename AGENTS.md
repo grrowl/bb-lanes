@@ -77,9 +77,10 @@ record the change here.
     and ends in an open circle.
   - Forked is neutral, dotted, and ends in an arrow.
   - None of the lines has a start cap.
-- **Opening a thread puts it beside Lanes.** A click on a lane or on Open
-  opens the thread in a side pane, so the swarm stays in view. ⌘-click opens
-  the thread in place.
+- **Threads open beside Lanes by default.** The keyboard help includes a saved
+  "Open to the side by default" checkbox, shared by all Lanes panes. Click or
+  Enter follows that preference on every thread link; ⌘/Ctrl-click or
+  ⌘/Ctrl-Enter reverses it.
 - **The default view shows active lanes, grouped by project.** Active means
   the thread has a turn in the window or is busy now. Needs you comes first,
   then running, then the most recent activity.
