@@ -709,7 +709,8 @@ a.lanes-name:hover {
   color: var(--bl-muted);
 }
 /* The summary keeps the parts that fit whole, in upstream's order; the rest
- * wrap onto a hidden line. The zero-width lead lets even the first part go. */
+ * wrap onto a hidden line. The zero-width lead lets even the first part go;
+ * its full line height keeps wrapped parts entirely below the clip. */
 .lanes-group .lanes-summary {
   flex: 1 1 0;
   flex-wrap: wrap;
@@ -719,6 +720,7 @@ a.lanes-name:hover {
 }
 .lanes-group .lanes-summary::before {
   content: "";
+  height: 100%;
   margin-right: -10px;
 }
 
