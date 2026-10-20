@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LaneBlock, LaneHandoff } from "../../shared/model";
-import { blockTitle, withReportTitles } from "./labels";
+import { blockOrigin, blockTitle, withReportTitles } from "./labels";
 
 const describeThread = (id: string) => ({ title: { lead: "Coordinate the build", a: "Backend indexer", b: "Timeline engine" }[id] ?? id, subtitle: null });
 
@@ -33,6 +33,16 @@ const ended = (from: string, toBlock: string): LaneHandoff => ({
 });
 
 describe("block titles", () => {
+  it("identifies confirmed user and bb inputs, leaving uncertain or relayed origins unmarked", () => {
+    const user = block("user", { initiator: "user", initiatorConfirmed: true });
+    expect(blockOrigin(user)).toBe("user");
+    expect(blockOrigin({ ...user, initiator: "system" })).toBe("system");
+    for (const overrides of [
+      { initiatorConfirmed: false }, { initiatorConfirmed: undefined },
+      { initiator: "agent" as const },
+      { senderThreadId: "other-thread" }, { id: "live:lead" },
+    ]) expect(blockOrigin({ ...user, ...overrides })).toBeNull();
+  });
   it("names a parent's turn after the child that reported into it", () => {
     const [report] = withReportTitles([block("t1")], [ended("a", "t1")], describeThread);
     expect(report!.title).toBe("Report from Backend indexer");

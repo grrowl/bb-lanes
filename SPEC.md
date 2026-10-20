@@ -157,6 +157,13 @@ native sidebar, theme tokens, status colours, and builtin plugins such as
   the end; failed = red tint; interrupted = done fill with a hatched end.
   Tool glyphs (≤3) before the title. Blocks narrower than ~28px drop the
   label; narrower than 6px still render as a 6px sliver.
+- A confirmed user input has a hollow blue dot at the turn's start; a
+  confirmed bb input has a hollow red dot. No line accompanies these dots.
+  Incoming hand-offs keep their existing marker instead. Uncertain and
+  provisional origins stay unmarked. Hover names the origin; the turn's
+  popover and accessible label also identify it.
+- Tool icons describe work done during the turn. Hovering the group or
+  focusing the turn shows one tooltip naming its visible tools.
 - Hand-off lines between lanes, one fixed style per kind (`HANDOFF_LINES`
   in `shared/view.ts`; see AGENTS.md "Our opinions"). They leave the
   sender's lane at the moment in the reply, not the block's end. Live ones flow. Hovering a

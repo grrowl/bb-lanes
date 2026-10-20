@@ -84,6 +84,7 @@ export function makeBlock(overrides: Partial<LaneBlock> & { threadId: string }):
     status: "running",
     title: "Do the thing",
     initiator: "user",
+    initiatorConfirmed: true,
     source: "send",
     senderThreadId: null,
     tools: [],

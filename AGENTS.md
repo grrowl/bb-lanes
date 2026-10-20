@@ -77,6 +77,11 @@ record the change here.
     and ends in an open circle.
   - Forked is neutral, dotted, and ends in an arrow.
   - None of the lines has a start cap.
+- **A confirmed input has a hollow dot at its turn's start.** Blue means a
+  user initiated it; red means bb initiated it. These dots have no incoming
+  line. An incoming hand-off keeps its existing marker instead of getting a
+  second dot. Uncertain origins stay unmarked. Tool icons describe work within
+  the turn; their group has one tooltip naming the tools.
 - **Threads open beside Lanes by default.** The keyboard help includes a saved
   "Open to the side by default" checkbox, shared by all Lanes panes. Click or
   Enter follows that preference on every thread link; ⌘/Ctrl-click or

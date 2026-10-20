@@ -38,6 +38,7 @@ export interface Fixture {
 const NO_COUNTS = { commands: 0, edits: 0, tools: 0, delegations: 0, messages: 0 };
 
 interface BlockSpec {
+  initiator?: LaneBlock["initiator"];
   id: string;
   thread: string;
   title: string;
@@ -62,7 +63,8 @@ function block(spec: BlockSpec, threads: Map<string, FixtureThread>): LaneBlock 
     end: spec.end ?? null,
     status,
     title: spec.title,
-    initiator: spec.sender ? "agent" : "user",
+    initiator: spec.initiator ?? (spec.sender || spec.source === "spawn" ? "agent" : "user"),
+    initiatorConfirmed: true,
     source: spec.source ?? (spec.sender ? "tell" : "send"),
     senderThreadId: spec.sender ?? null,
     tools,

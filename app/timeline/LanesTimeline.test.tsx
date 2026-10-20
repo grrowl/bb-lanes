@@ -44,6 +44,44 @@ function setup(overrides: Partial<TimelineProps> = {}) {
 const block = (name: RegExp) => screen.getByRole("button", { name });
 
 describe("LanesTimeline", () => {
+  it("marks user turns, leaves spawned turns unmarked, and explains the origin", () => {
+    setup();
+    const user = block(/Customer interviews/);
+    expect((user.closest(".bl-slot") as HTMLElement).dataset.origin).toBe("user");
+    expect(user.getAttribute("aria-label")).toContain("started by you");
+    const spawned = block(/Build the timeline engine/);
+    expect(spawned.closest(".bl-slot")!.hasAttribute("data-origin")).toBe(false);
+    fireEvent.click(user);
+    expect(screen.getByText("Started by you")).toBeTruthy();
+  });
+
+  it("marks bb inputs, keeps uncertain inputs unmarked, and avoids duplicating an incoming hand-off", () => {
+    const fixture = scenario(BASE, 2, { noHistory: true });
+    const blocks = fixture.blocks.map((turn) => turn.id === "r2" ? { ...turn, initiator: "system" as const }
+      : turn.id === "s2" ? { ...turn, initiatorConfirmed: false }
+      : turn.id === "b2" ? { ...turn, initiator: "system" as const, senderThreadId: null } : turn);
+    setup({ blocks });
+    const bb = block(/Customer interviews/);
+    expect((bb.closest(".bl-slot") as HTMLElement).dataset.origin).toBe("system");
+    expect(bb.getAttribute("aria-label")).toContain("started by bb");
+    expect(block(/Push the shell to main/).closest(".bl-slot")!.hasAttribute("data-origin")).toBe(false);
+    expect(block(/Answer the coordinator's review notes/).closest(".bl-slot")!.hasAttribute("data-origin")).toBe(false);
+    fireEvent.click(bb);
+    expect(screen.getByText("Started by bb")).toBeTruthy();
+  });
+
+  it("names the tool group on keyboard focus without adding another tab stop", async () => {
+    setup();
+    const turn = block(/Merge the backend and brief the shell/);
+    act(() => turn.focus());
+    const tip = await screen.findByRole("tooltip");
+    expect(tip.textContent).toBe("Commands · Delegation");
+    expect(turn.getAttribute("aria-label")).toContain("Commands · Delegation");
+    expect(turn.querySelector(".bl-tools")!.getAttribute("tabindex")).toBeNull();
+    fireEvent.click(turn);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
   it("draws each lane as a labelled list of turn buttons", () => {
     setup();
     expect(screen.getByRole("list", { name: "Coordinate the Lanes build's turns" })).toBeTruthy();

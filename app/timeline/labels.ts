@@ -1,6 +1,7 @@
 // Copy shared by blocks, tooltips, and screen-reader labels.
 import type { BlockStatus, LaneBlock, LaneHandoff } from "../../shared/model";
 import { formatClock, formatDuration } from "./time";
+import { toolLabel } from "./glyphs";
 
 export const STATUS_LABEL: Record<BlockStatus, string> = {
   done: "Done",
@@ -18,6 +19,20 @@ type Describe = (threadId: string) => { title: string; subtitle: string | null }
  */
 export function isProvisional(block: LaneBlock): boolean {
   return block.id.startsWith("live:");
+}
+
+export function blockOrigin(block: LaneBlock): "user" | "system" | null {
+  if (block.initiatorConfirmed !== true || block.senderThreadId !== null || isProvisional(block)) return null;
+  return block.initiator === "user" || block.initiator === "system" ? block.initiator : null;
+}
+
+export function blockOriginLabel(block: LaneBlock): string | null {
+  const origin = blockOrigin(block);
+  return origin === "user" ? "Started by you" : origin === "system" ? "Started by bb" : null;
+}
+
+export function blockToolsLabel(block: LaneBlock): string {
+  return block.tools.slice(0, 3).map(toolLabel).join(" · ");
 }
 
 /** What a block says when its input had no text. */
@@ -62,7 +77,9 @@ export function blockAriaLabel(block: LaneBlock, now: number, describe: Describe
   const lane = describe(block.threadId).title;
   const duration = formatDuration(blockDuration(block, now));
   const timing = block.end === null ? `${duration} so far` : `took ${duration}`;
-  return `${lane}: ${blockTitle(block, describe)} – ${STATUS_LABEL[block.status]}, ${timing}, started ${formatClock(block.start)}`;
+  const origin = blockOriginLabel(block);
+  const tools = blockToolsLabel(block);
+  return `${lane}: ${blockTitle(block, describe)} – ${STATUS_LABEL[block.status]}, ${timing}, started ${formatClock(block.start)}${origin ? `, ${origin.toLowerCase()}` : ""}${tools ? `, ${tools}` : ""}`;
 }
 
 export function clusterAriaLabel(

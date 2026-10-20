@@ -3,6 +3,7 @@
 // bb runtime. URL parameters make screenshots reproducible:
 //   ?theme=dark&span=1h&density=compact&scenario=stress&elapsed=6&speed=0
 //   &width=480&collapse=project:infra&empty=1&highlight=thr_engine
+// `&origins=1` isolates user, bb, and uncertain origins for marker review.
 // `?parity` draws upstream's demo at upstream's 760px card and frozen clock,
 // for side-by-side checks against a local copy of upstream (see docs/fidelity.md);
 // `?parity=live` runs the demo's accelerated script.
@@ -249,7 +250,17 @@ function DemoHarness() {
   const stressNow = useMemo(() => Date.now(), []);
   const fixture: Fixture = useMemo(() => {
     if (which === "stress") return stressScenario(stressNow);
-    return scenario(base, step / 10, { decisions, decidedAt });
+    const fixture = scenario(base, step / 10, { decisions, decidedAt });
+    if (params.get("origins") !== "1") return fixture;
+    return {
+      ...fixture,
+      blocks: fixture.blocks.map((block) =>
+        block.id === "m3" ? { ...block, initiator: "system" as const, senderThreadId: null, source: "send", title: "Refresh thread state" }
+          : block.id === "c2" ? { ...block, initiator: "user" as const, senderThreadId: null, source: "send" }
+          : block.id === "r2" ? { ...block, initiatorConfirmed: false } : block,
+      ),
+      handoffs: fixture.handoffs.filter((handoff) => handoff.toBlockId !== "c2" && handoff.toBlockId !== "m3"),
+    };
   }, [which, base, step, decisions, decidedAt, stressNow]);
 
   const { blocks: loadedBlocks, neighbors } = useShellLoading(fixture.blocks, viewport, now);

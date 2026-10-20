@@ -2,13 +2,14 @@
 // collapsed group's merged activity strip. Every element is positioned in
 // percent of the track against the frame's anchor, so sliding never touches
 // them; they re-render only when their own blocks or the frame change.
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import type { ViewController } from "./controller";
 import type { CSSProperties } from "react";
 import type { LaneBlock } from "../../shared/model";
 import type { GroupRow, LaneRow } from "../../shared/view";
 import { ToolGlyph } from "./glyphs";
-import { blockAriaLabel, blockTitle, clusterAriaLabel, plural } from "./labels";
+import { blockAriaLabel, blockTitle, blockToolsLabel, blockOrigin, blockOriginLabel, clusterAriaLabel, plural } from "./labels";
+import { Tooltip, TooltipTrigger, TooltipContent } from "../../components/ui/tooltip";
 import { STRIP_STATES, type ActivityStrip, type ClusterItem, type TrackItem } from "./layout";
 import type { UiStore } from "./store";
 import { useUi } from "./store";
@@ -29,6 +30,7 @@ function slotStyle(start: number, end: number, place: Placement, open: boolean):
 }
 
 export interface LaneTrackProps {
+  incomingAtStart: ReadonlySet<string>;
   row: LaneRow;
   top: number;
   height: number;
@@ -46,6 +48,7 @@ export interface LaneTrackProps {
 }
 
 export const LaneTrack = memo(function LaneTrack({
+  incomingAtStart,
   row,
   top,
   height,
@@ -95,6 +98,7 @@ export const LaneTrack = memo(function LaneTrack({
             popoverId={popoverId}
             describe={describe}
             controller={controller}
+            hasIncoming={incomingAtStart.has(item.block.id)}
           />
         ) : (
           <ClusterSlot
@@ -111,6 +115,7 @@ export const LaneTrack = memo(function LaneTrack({
 });
 
 interface BlockSlotProps {
+  hasIncoming: boolean;
   block: LaneBlock;
   navId: string;
   start: number;
@@ -126,8 +131,9 @@ interface BlockSlotProps {
 }
 
 const BlockSlot = memo(
-  function BlockSlot({ block, navId, start, end, place, now, roving, open, fresh, popoverId, describe, controller }: BlockSlotProps) {
+  function BlockSlot({ block, navId, start, end, place, now, roving, open, fresh, popoverId, describe, controller, hasIncoming }: BlockSlotProps) {
     const isOpen = block.end === null;
+    const [toolsOpen, setToolsOpen] = useState(false);
     const sticky = useCallback(
       (el: HTMLSpanElement | null) => {
         if (!el) return;
@@ -144,6 +150,7 @@ const BlockSlot = memo(
         className="bl-slot"
         data-status={block.status}
         data-fresh={fresh ? "" : undefined}
+        data-origin={hasIncoming ? undefined : blockOrigin(block) ?? undefined}
         style={slotStyle(start, end, place, isOpen)}
       >
         <button
@@ -158,16 +165,36 @@ const BlockSlot = memo(
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={open ? popoverId : undefined}
+          onFocus={(event) => setToolsOpen((event.currentTarget.querySelector(".bl-tools")?.getBoundingClientRect().width ?? 0) > 0)}
+          onBlur={() => setToolsOpen(false)}
+          onClick={() => setToolsOpen(false)}
         >
+          {!hasIncoming && blockOrigin(block) && (
+            <Tooltip disableHoverableContent>
+              <TooltipTrigger asChild>
+                <span className="bl-origin-hit" aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent className="bl-theme bl-tools-tip" side="top" updatePositionStrategy="always">
+                {blockOriginLabel(block)}
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span ref={sticky} className="bl-content">
             {block.tools.length > 0 && (
-              <span className="bl-tools" aria-hidden="true">
-                {block.tools.slice(0, 3).map((kind) => (
-                  <span key={kind} className="bl-tool">
-                    <ToolGlyph kind={kind} />
+              <Tooltip open={toolsOpen && !open} onOpenChange={setToolsOpen} disableHoverableContent>
+                <TooltipTrigger asChild>
+                  <span className="bl-tools" aria-hidden="true">
+                    {block.tools.slice(0, 3).map((kind) => (
+                      <span key={kind} className="bl-tool">
+                        <ToolGlyph kind={kind} />
+                      </span>
+                    ))}
                   </span>
-                ))}
-              </span>
+                </TooltipTrigger>
+                <TooltipContent className="bl-theme bl-tools-tip" side="top" updatePositionStrategy="always">
+                  {blockToolsLabel(block)}
+                </TooltipContent>
+              </Tooltip>
             )}
             <span className="bl-label">{blockTitle(block, describe)}</span>
           </span>
@@ -187,6 +214,7 @@ const BlockSlot = memo(
   },
   (a, b) =>
     a.block === b.block &&
+    a.hasIncoming === b.hasIncoming &&
     a.navId === b.navId &&
     a.start === b.start &&
     a.end === b.end &&

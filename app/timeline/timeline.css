@@ -558,6 +558,33 @@
   border-radius: var(--bl-radius);
   background: var(--bl-card);
 }
+/* An input starts here. Its origin follows time, never the sticky title. */
+.bl-slot[data-origin]::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 50%;
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--bl-run-fg);
+  border-radius: 50%;
+  background: var(--bl-card);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.bl-slot[data-origin="system"]::after {
+  border-color: var(--bl-danger-fg);
+}
+.bl-origin-hit {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 12px;
+  transform: translateY(-50%);
+}
 /* Running and waiting blocks grow out of "now" from nothing, so they never poke past it */
 .bl-slot:is([data-status="running"], [data-status="waiting"]),
 .bl-slot:is([data-status="running"], [data-status="waiting"]) .bl-block {
@@ -567,6 +594,7 @@
   animation: bl-in 180ms ease both;
 }
 .bl-block {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
@@ -616,6 +644,17 @@
 .bl-glyph {
   width: 12px;
   height: 12px;
+}
+.bl-tools-tip {
+  z-index: 50;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bl-tip-bg);
+  box-shadow: var(--bl-tip-shadow);
+  color: var(--bl-tip-text);
+  font: 11px/16px "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  animation: none;
 }
 /* Container sizes are the block's content box (its width less 20px of padding):
  * glyphs go below 72px, the title below 28px, as in the spec. */
@@ -931,6 +970,10 @@
 .bl-tip-num {
   flex: none;
   font-variant-numeric: tabular-nums;
+}
+.bl-tip-origin {
+  color: var(--bl-tip-muted);
+  font-size: 11.5px;
 }
 .bl-tip-title {
   color: var(--bl-tip-strong);

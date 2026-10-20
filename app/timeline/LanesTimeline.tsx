@@ -54,6 +54,7 @@ import { clamp, formatPointerTime, timeAtFraction } from "./time";
 import "./timeline.css";
 import { usePaneShortcuts } from "../../lib/use-pane-shortcuts";
 import { threadSplit } from "../../lib/thread-opening";
+import { TooltipProvider } from "../../components/ui/tooltip";
 
 const OVERSCAN_ROWS = 6;
 /** Below this track width a jumper and its label would crowd the blocks they point past. */
@@ -75,6 +76,14 @@ interface Focusable {
 }
 
 export function LanesTimeline(props: TimelineProps) {
+  return (
+    <TooltipProvider delayDuration={300}>
+      <TimelineContent {...props} />
+    </TooltipProvider>
+  );
+}
+
+function TimelineContent(props: TimelineProps) {
   const { rows, handoffs, now, viewport, density, highlightedThreadId, className } = props;
   const rawId = useId();
   const uid = useMemo(() => `bl${rawId.replace(/[^a-zA-Z0-9]/g, "")}`, [rawId]);
@@ -92,6 +101,11 @@ export function LanesTimeline(props: TimelineProps) {
   // Below 520px the names column is avatars only and each lane gains a caption line.
   const [narrow, setNarrow] = useState(false);
   const index = useMemo(() => indexBlocks(blocks), [blocks]);
+  const incomingAtStart = useMemo(() => new Set(handoffs.filter((handoff) => {
+    const target = index.byId.get(handoff.toBlockId);
+    const source = handoff.fromBlockId ? index.byId.get(handoff.fromBlockId) : undefined;
+    return target !== undefined && Math.max(handoff.at, source?.start ?? handoff.at) <= target.start;
+  }).map((handoff) => handoff.toBlockId)), [handoffs, index]);
   const layout = useMemo(() => layoutRows(rows, density, narrow), [rows, density, narrow]);
   const hasOpen = useMemo(() => blocks.some((b) => b.end === null), [blocks]);
 
@@ -1069,6 +1083,7 @@ export function LanesTimeline(props: TimelineProps) {
                           describe={describe}
                           selection={selection}
                           controller={controller}
+                          incomingAtStart={incomingAtStart}
                         />
                       );
                     }

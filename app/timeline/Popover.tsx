@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { openModifier, threadSplit } from "../../lib/thread-opening";
 import type { BlockDetail, LaneBlock } from "../../shared/model";
 import type { ViewController } from "./controller";
-import { STATUS_LABEL, blockDuration, blockTitle, plural } from "./labels";
+import { STATUS_LABEL, blockDuration, blockTitle, blockOriginLabel, plural } from "./labels";
 import { clamp, formatDuration } from "./time";
 
 type Describe = (threadId: string) => { title: string; subtitle: string | null };
@@ -100,6 +100,7 @@ export function BlockTooltip(props: TooltipProps) {
         <span>·</span>
         <span className="bl-tip-num">{formatDuration(blockDuration(block, now))}</span>
       </span>
+      {blockOriginLabel(block) && <span className="bl-tip-origin">{blockOriginLabel(block)}</span>}
       {detail.status === "loading" ? (
         <span className="bl-tip-skeleton" role="status" aria-label="Loading what got done">
           <span />
