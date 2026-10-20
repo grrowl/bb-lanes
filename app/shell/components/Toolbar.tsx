@@ -341,7 +341,6 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, summary, 
           <Popover.Portal>
             <Popover.Content align="end" sideOffset={4} className={`${MENU} lanes-shortcuts`} aria-label="Keyboard shortcuts" tabIndex={-1}>
               <MenuLabel>Keyboard shortcuts</MenuLabel>
-              <p>Click anywhere in Lanes to use these keys. Esc closes this help.</p>
               <dl>
                 {KEYS.map(([what, keys]) => (
                   <div key={what}><dt>{what}</dt><dd><kbd>{keys}</kbd></dd></div>
