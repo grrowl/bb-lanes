@@ -140,6 +140,7 @@ export function overlayLiveState(
       status: thread.hasPendingInteraction ? "waiting" : "running",
       title: "",
       initiator: "user",
+      initiatorConfirmed: false,
       source: "send",
       senderThreadId: null,
       tools: [],

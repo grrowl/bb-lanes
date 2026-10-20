@@ -27,6 +27,7 @@ interface InputRequest {
   model: string | null;
   source: string;
   initiator: BlockInitiator;
+  initiatorConfirmed: boolean;
   senderThreadId: string | null;
   assignedTo: string | null;
   endedThreadId: string | null;
@@ -44,7 +45,7 @@ export interface IndexedTurn {
   syntheticEnd: boolean;
 }
 /** Bump when folding changes turns or handoffs; stored indexes from older versions are rebuilt. */
-export const INDEX_VERSION = 4;
+export const INDEX_VERSION = 5;
 
 export interface ThreadIndex {
   version: number;
@@ -161,6 +162,7 @@ function applyRequest(turn: IndexedTurn, request: InputRequest) {
   turn.block.seq = request.seq;
   turn.block.source = request.source;
   turn.block.initiator = request.initiator;
+  turn.block.initiatorConfirmed = request.initiatorConfirmed;
   turn.block.senderThreadId = request.senderThreadId;
 }
 
@@ -190,6 +192,7 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
         state.requests.push({ id, seq: event.seq, at: event.createdAt, prompt: promptText(data.input).slice(0, 600),
           model: string(object(data.execution).model) || string(data.model) || null,
           source: string(data.source) || "send", initiator: data.initiator === "agent" || data.initiator === "system" ? data.initiator : "user",
+          initiatorConfirmed: data.initiator === "user" || data.initiator === "agent" || data.initiator === "system",
           senderThreadId: string(data.senderThreadId) || null, assignedTo: null,
           endedThreadId: isChildEnd ? string(subject.threadId) || null : null });
       }
@@ -200,7 +203,7 @@ export function foldEvents(previous: ThreadIndex, events: readonly IndexEvent[],
     if (event.type === "turn/started" && !state.turns[turnId]) {
       const turn: IndexedTurn = {
         block: { id: turnId, threadId: thread.id, seq: event.seq, start: event.createdAt, end: null,
-          status: "running", title: "", initiator: "system", source: "unknown", senderThreadId: null,
+          status: "running", title: "", initiator: "system", initiatorConfirmed: false, source: "unknown", senderThreadId: null,
           tools: [], counts: { commands: 0, edits: 0, tools: 0, delegations: 0, messages: 0 }, ask: null },
         prompt: "", startSeq: event.seq, endSeq: null, acceptedRequestIds: [], fallbackRequestId: null,
         toolFrequency: {}, seenItems: [], pending: {}, syntheticEnd: false,

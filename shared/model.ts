@@ -69,6 +69,8 @@ export interface LaneBlock {
   /** First line of the input that started the turn, trimmed to ~120 chars. "" when unknown. */
   title: string;
   initiator: BlockInitiator;
+  /** True only when the recorded input explicitly identifies its initiator. */
+  initiatorConfirmed?: boolean;
   source: BlockSource;
   /** The thread that sent this turn's input (tell from another agent), or null. */
   senderThreadId: string | null;

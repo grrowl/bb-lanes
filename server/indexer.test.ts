@@ -17,6 +17,13 @@ const approval = { kind: "approval", availableDecisions: ["allow_once", "deny"],
 const fold = (events: IndexEvent[]) => foldEvents(emptyIndex(), events, thread);
 
 describe("thread event fold", () => {
+  it.each([
+    ["user", true], ["agent", true], ["system", true], [undefined, false], ["unknown", false],
+  ])("confirms attribution only for an explicit initiator (%s)", (initiator, confirmed) => {
+    const input = event(1, "client/turn/requested", undefined, { source: "send", initiator });
+    const state = fold([input, started(2)]);
+    expect(state.turns.turn.block.initiatorConfirmed).toBe(confirmed);
+  });
   it("opens and completes a turn with prompt, model and attribution", () => {
     const state = fold([request(1, "r", "spawn"), started(2), accepted(3, "r"), event(4, "turn/completed", "turn", { status: "completed" })]);
     expect(state.turns.turn.block).toMatchObject({ title: "r first line", model: "model-r", status: "done", start: 20, end: 40,
@@ -90,7 +97,7 @@ describe("thread event fold", () => {
     expect(state.handoffs).toEqual([]);
   });
   it("allows provider turns without an input request", () => {
-    expect(fold([started(1)]).turns.turn.block).toMatchObject({ title: "", status: "running", end: null });
+    expect(fold([started(1)]).turns.turn.block).toMatchObject({ title: "", status: "running", end: null, initiatorConfirmed: false });
   });
   it("prefers explicit accepted links and keeps the first accepted input and model for grouped requests", () => {
     const events = [request(1, "first", "tell", "sender-one"), request(2, "second", "tell", "sender-two"), started(3),

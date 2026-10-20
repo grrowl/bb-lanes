@@ -84,6 +84,7 @@ describe("overlayLiveState", () => {
       ["old", 1, 70],
       ["live:busy", 70, null],
     ]);
+    expect(result[1]!.initiatorConfirmed).toBe(false);
   });
 });
 

@@ -13,6 +13,7 @@ export const laneBlockSchema = z.object({
   status: z.enum(["done", "running", "waiting", "failed", "interrupted"]),
   title: z.string(),
   initiator: z.enum(["user", "agent", "system"]),
+  initiatorConfirmed: z.boolean().optional(),
   source: z.string(),
   senderThreadId: z.string().nullable(),
   tools: z.array(toolKind),
