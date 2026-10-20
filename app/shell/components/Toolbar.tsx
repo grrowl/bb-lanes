@@ -352,7 +352,7 @@ export function Toolbar({ state, actions, counts, groupIds, condensed, summary, 
                 Open to the side by default
                 <CheckGlyph off={!openBeside} />
               </button>
-              <p>{openModifier()}-click or {openModifier()}-Enter opens a thread {openBeside ? "here" : "to the side"}.</p>
+              <p>{openModifier()}-click / {openModifier()}-Enter reverses this.</p>
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
